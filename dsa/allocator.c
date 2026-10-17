@@ -6,6 +6,7 @@
 #include "allocator.h"
 #include "include/priority_queue.h"
 #include "include/hashmap.h"
+#include "include/graph.h"
 
 #define MAX_STDIN_BUFFER 65536
 
@@ -107,6 +108,7 @@ int main(void) {
     // 1. Initialize data structures
     initQueue();
     populateSampleInventory();
+    populateSampleHospitalNetwork();
 
     // 2. Read any incoming JSON payload from stdin
     char *input_buffer = (char *)malloc(MAX_STDIN_BUFFER);
@@ -188,9 +190,21 @@ int main(void) {
         }
     }
 
-    // 8. Output JSON response to stdout
+    // 8. Display the connected hospital network graph
+    printGraph();
+    Graph *hospitalGraph = getGraph();
+
+    // Determine hospital name where resource is located
+    const char *resourceHospital = matchedResource ? matchedResource->hospitalName : "City Hospital";
+
+    // 9. Output JSON response to stdout
     printf("{\n");
     printf("  \"success\": true,\n");
+    printf("  \"resourceHospital\": \"%s\",\n", resourceHospital);
+    printf("  \"graph\": {\n");
+    printf("    \"nodes\": %d,\n", hospitalGraph ? hospitalGraph->numNodes : 0);
+    printf("    \"edges\": %d\n", hospitalGraph ? hospitalGraph->numEdges : 0);
+    printf("  },\n");
     printf("  \"processedRequest\": {\n");
     printf("    \"requestId\": %d,\n", processed.requestId);
     printf("    \"patientName\": \"%s\",\n", processed.patientName);
@@ -223,7 +237,8 @@ int main(void) {
 
     fflush(stdout);
 
-    // Free hash map allocations before process exit
+    // Free all dynamically allocated memory
+    freeGraph();
     freeHashMap();
 
     return 0;
