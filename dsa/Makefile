@@ -5,8 +5,8 @@ CC = gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -O2 -Iinclude -I.
 
 BUILD_DIR = build
-SRCS = allocator.c src/priority_queue.c
-HEADERS = allocator.h include/priority_queue.h
+SRCS = allocator.c src/priority_queue.c src/hashmap.c
+HEADERS = allocator.h include/priority_queue.h include/hashmap.h
 
 ifeq ($(OS),Windows_NT)
 	TARGET = $(BUILD_DIR)/allocator.exe

@@ -120,9 +120,42 @@ export default function TestPage() {
             </div>
 
             <div className="flex-1 flex flex-col space-y-2">
-              <label htmlFor="payload-input" className="text-xs text-zinc-400">
-                Payload (<code className="text-zinc-300">stdin</code> to C Engine):
-              </label>
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <label htmlFor="payload-input">
+                  Payload (<code className="text-zinc-300">stdin</code> to C Engine):
+                </label>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-zinc-500">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setInputJson(JSON.stringify({ patientName: "John", resource: "A+", priority: "Critical" }, null, 2))}
+                    className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-cyan-400 border border-zinc-700/60 transition"
+                  >
+                    A+
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputJson(JSON.stringify({ patientName: "Alice", resource: "Paracetamol", priority: "Critical" }, null, 2))}
+                    className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-zinc-700/60 transition"
+                  >
+                    Paracetamol
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputJson(JSON.stringify({ patientName: "Marcus", resource: "ICU_BEDS", priority: "Critical" }, null, 2))}
+                    className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-violet-400 border border-zinc-700/60 transition"
+                  >
+                    ICU_BEDS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputJson(JSON.stringify({ patientName: "Bob", resource: "O-", priority: "Critical" }, null, 2))}
+                    className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-zinc-700/60 transition"
+                  >
+                    O-
+                  </button>
+                </div>
+              </div>
               <textarea
                 id="payload-input"
                 rows={9}
