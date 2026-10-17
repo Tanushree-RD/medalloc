@@ -1,0 +1,21 @@
+{
+  "name": "medalloc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MedAlloc - Intelligent Medical Resource Allocation System",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"green,cyan\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build:engine && npm run build:client",
+    "build:client": "npm run build --prefix client",
+    "build:server": "npm install --prefix server",
+    "build:engine": "node scripts/build-engine.js",
+    "run:engine": "node scripts/run-engine.js",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

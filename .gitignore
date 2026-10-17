@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+client/.next/
+out/
+client/out/
+build/
+dist/
+
+# C / DSA Build Artifacts
+dsa/build/*.exe
+dsa/build/*.o
+dsa/build/allocator
+!dsa/build/.gitkeep
+!dsa/include/.gitkeep
+!dsa/src/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+!server/.env.example
+
+# Debug and Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Editor & OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
