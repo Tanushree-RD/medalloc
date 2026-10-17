@@ -57,7 +57,7 @@ int findHospitalIndex(int id) {
  * @param latitude Geographic coordinate
  * @param longitude Geographic coordinate
  */
-void addHospital(int id, const char *name, float latitude, float longitude) {
+void addHospitalVertex(int id, const char *name, float latitude, float longitude) {
     if (!g_graphInitialized) {
         initGraph();
     }
@@ -216,11 +216,11 @@ void populateSampleHospitalNetwork(void) {
     initGraph();
 
     // 1. Add 5 Sample Hospitals (Vertices)
-    addHospital(1, "City Hospital",           40.7128f, -74.0060f); // Central Hub
-    addHospital(2, "General Hospital",        40.7306f, -73.9352f); // North-East
-    addHospital(3, "Sunrise Medical Center",  40.7589f, -73.9851f); // Midtown
-    addHospital(4, "Apollo Care",             40.7829f, -73.9654f); // Uptown
-    addHospital(5, "Metro Hospital",          40.6782f, -73.9442f); // South / Brooklyn
+    addHospitalVertex(1, "City Hospital",           40.7128f, -74.0060f); // Central Hub
+    addHospitalVertex(2, "General Hospital",        40.7306f, -73.9352f); // North-East
+    addHospitalVertex(3, "Sunrise Medical Center",  40.7589f, -73.9851f); // Midtown
+    addHospitalVertex(4, "Apollo Care",             40.7829f, -73.9654f); // Uptown
+    addHospitalVertex(5, "Metro Hospital",          40.6782f, -73.9442f); // South / Brooklyn
 
     // 2. Add 8 Weighted Roadway Connections (Edges in km)
     addRoad(1, 2, 5);  // City Hospital <-> General Hospital (5 km)

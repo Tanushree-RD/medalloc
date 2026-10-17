@@ -61,7 +61,7 @@ void initGraph(void);
  * @param latitude Geographic coordinate
  * @param longitude Geographic coordinate
  */
-void addHospital(int id, const char *name, float latitude, float longitude);
+void addHospitalVertex(int id, const char *name, float latitude, float longitude);
 
 /**
  * Adds an undirected roadway edge between two hospitals with a given distance in km.
