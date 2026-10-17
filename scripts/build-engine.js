@@ -13,15 +13,15 @@ const isWindows = process.platform === 'win32';
 const targetName = isWindows ? 'allocator.exe' : 'allocator';
 const targetPath = path.join(buildDir, targetName);
 
-console.log('[MedAlloc Engine] Compiling C Algorithm Engine...');
+console.log('[MedAlloc Engine] Compiling C Algorithm Engine with Priority Queue module...');
 
 try {
-  // Try compiling with gcc directly
-  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c -o "${targetPath}"`;
+  // Compile allocator.c and all source files in src/
+  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c src/priority_queue.c -o "${targetPath}"`;
   execSync(cmd, { cwd: dsaDir, stdio: 'inherit' });
   console.log(`[MedAlloc Engine] Compilation succeeded: ${targetPath}`);
 } catch (err) {
-  console.error('[MedAlloc Engine] Direct gcc compilation failed, attempting make...');
+  console.error('[MedAlloc Engine] Direct gcc compilation failed, attempting make...', err.message);
   try {
     const makeCmd = isWindows ? 'mingw32-make -C dsa all' : 'make -C dsa all';
     execSync(makeCmd, { cwd: path.resolve(__dirname, '..'), stdio: 'inherit' });

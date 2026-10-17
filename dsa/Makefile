@@ -5,8 +5,8 @@ CC = gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -O2 -Iinclude -I.
 
 BUILD_DIR = build
-SRC = allocator.c
-HEADER = allocator.h
+SRCS = allocator.c src/priority_queue.c
+HEADERS = allocator.h include/priority_queue.h
 
 ifeq ($(OS),Windows_NT)
 	TARGET = $(BUILD_DIR)/allocator.exe
@@ -22,8 +22,8 @@ endif
 
 all: $(TARGET)
 
-$(TARGET): $(SRC) $(HEADER)
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+$(TARGET): $(SRCS) $(HEADERS)
+	$(CC) $(CFLAGS) $(SRCS) -o $(TARGET)
 
 run: $(TARGET)
 	./$(TARGET)
