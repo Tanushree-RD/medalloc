@@ -56,17 +56,10 @@ unsigned int hash(const char *key) {
 
 /**
  * Inserts a ResourceEntry into the hash map using separate chaining.
+ * If the exact same (key, hospitalId) combination exists, updates it in-place.
+ * Otherwise prepends a new HashNode to the bucket chain.
  * 
- * Lookup & Collision Resolution:
- * 1. Computes the hash index for the entry's key in O(k) time.
- * 2. Traverses the chain at g_buckets[index].
- * 3. If an existing entry with the same key is found, updates it in-place.
- * 4. If not found, allocates a new HashNode and prepends it to the chain in O(1).
- * 
- * Complexity:
- * - Average Time Complexity: O(1) assuming uniform hash distribution and low load factor.
- * - Worst-Case Time Complexity: O(N) if all N keys collide in the same bucket chain.
- * - Space Complexity: O(1) auxiliary per insertion.
+ * Average Time Complexity: O(1)
  * 
  * @param resource The resource entry to store
  */
@@ -82,17 +75,18 @@ void insert(ResourceEntry resource) {
 
     unsigned int bucketIndex = hash(resource.key);
 
-    // Check if key already exists in the chain; if so, update
+    // Check if (key, hospitalId) already exists in the chain; if so, update
     HashNode *current = g_buckets[bucketIndex];
     while (current != NULL) {
-        if (strcasecmp(current->key, resource.key) == 0) {
+        if (strcasecmp(current->key, resource.key) == 0 &&
+            current->data.hospitalId == resource.hospitalId) {
             current->data = resource;
             return;
         }
         current = current->next;
     }
 
-    // Key not found: allocate new node and prepend to bucket chain (O(1))
+    // Allocate new node and prepend to bucket chain (O(1))
     HashNode *newNode = (HashNode *)malloc(sizeof(HashNode));
     if (!newNode) {
         fprintf(stderr, "[HashMap Error] Failed to allocate memory for HashNode\n");
@@ -108,16 +102,12 @@ void insert(ResourceEntry resource) {
 
 /**
  * Searches for a ResourceEntry by key.
+ * Returns the first available matching entry.
  * 
- * Complexity:
- * - Average Time Complexity: O(1).
- *   With N keys distributed across M = 101 buckets, average chain length is
- *   the load factor alpha = N / M. For sparse healthcare resource tables,
- *   alpha << 1, meaning lookup evaluates in constant time O(1).
- * - Worst-case: O(N) in the degenerate case of all keys colliding.
+ * Average Time Complexity: O(1)
  * 
- * @param key Null-terminated search key (e.g. "A+", "Paracetamol", "ICU_BEDS")
- * @return Pointer to matching ResourceEntry, or NULL if key does not exist
+ * @param key Null-terminated search key
+ * @return Pointer to matching ResourceEntry, or NULL if not found
  */
 ResourceEntry *search(const char *key) {
     if (!g_initialized || !key || *key == '\0') {
@@ -138,8 +128,45 @@ ResourceEntry *search(const char *key) {
 }
 
 /**
+ * Searches all hospital entries matching resourceKey and populates outHospitalIds
+ * with all distinct hospital IDs having available stock (> 0).
+ * 
+ * @param resourceKey Key to search (e.g. "A+", "Ventilator", "Paracetamol", "ICU_BEDS")
+ * @param outHospitalIds Array to receive matched hospital IDs
+ * @param maxResults Maximum elements in outHospitalIds
+ * @return Count of distinct hospitals found
+ */
+int getHospitalsWithResource(const char *resourceKey, int outHospitalIds[], int maxResults) {
+    if (!g_initialized || !resourceKey || *resourceKey == '\0' || maxResults <= 0) {
+        return 0;
+    }
+
+    int foundCount = 0;
+    unsigned int bucketIndex = hash(resourceKey);
+    HashNode *current = g_buckets[bucketIndex];
+
+    while (current != NULL && foundCount < maxResults) {
+        if (strcasecmp(current->key, resourceKey) == 0) {
+            int hId = current->data.hospitalId;
+            bool alreadyAdded = false;
+            for (int i = 0; i < foundCount; i++) {
+                if (outHospitalIds[i] == hId) {
+                    alreadyAdded = true;
+                    break;
+                }
+            }
+            if (!alreadyAdded) {
+                outHospitalIds[foundCount++] = hId;
+            }
+        }
+        current = current->next;
+    }
+
+    return foundCount;
+}
+
+/**
  * Removes an entry matching the given key from the hash map.
- * Frees the associated node from the bucket chain.
  * 
  * Average Time Complexity: O(1)
  * 
@@ -187,8 +214,9 @@ void printHashMap(void) {
             while (curr != NULL) {
                 chainLen++;
                 totalEntries++;
-                fprintf(stderr, "-> [Key: \"%s\" | Hospital: %s | Blood: %s (%d) | Med: %s (%d) | Beds: %d] ",
+                fprintf(stderr, "-> [Key: \"%s\" | #%d %s | Blood: %s (%d) | Med: %s (%d) | Beds: %d] ",
                         curr->key,
+                        curr->data.hospitalId,
                         curr->data.hospitalName,
                         curr->data.bloodGroup,
                         curr->data.bloodUnits,
@@ -228,115 +256,60 @@ void freeHashMap(void) {
 }
 
 /**
- * Populates the hash map with sample hospital inventory data.
- * Covers blood groups, emergency medications, ICU beds, and general medical resources.
+ * Populates the hash map with sample hospital inventory data mapped to the 5 regional hospitals.
  */
 void populateSampleInventory(void) {
     initHashMap();
 
-    // 1. Blood Inventory: A+
-    ResourceEntry r1 = {
-        .key = "A+",
-        .hospitalId = 1,
-        .hospitalName = "City Hospital",
-        .bloodGroup = "A+",
-        .bloodUnits = 12,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 8
-    };
+    // 1. Hospital 1: City Hospital (Hub)
+    ResourceEntry r1_blood = { "A+", 1, "City Hospital", "A+", 12, "N/A", 0, 8 };
+    ResourceEntry r1_alias = { "Blood", 1, "City Hospital", "A+", 12, "N/A", 0, 8 };
+    ResourceEntry r1_med   = { "Paracetamol", 1, "City Hospital", "N/A", 0, "Paracetamol (500mg IV)", 350, 8 };
+    ResourceEntry r1_beds  = { "ICU_BEDS", 1, "City Hospital", "N/A", 0, "N/A", 0, 8 };
 
-    // 2. Blood Inventory: O- (Universal Donor)
-    ResourceEntry r2 = {
-        .key = "O-",
-        .hospitalId = 2,
-        .hospitalName = "Metro General",
-        .bloodGroup = "O-",
-        .bloodUnits = 5,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 14
-    };
+    // 2. Hospital 2: General Hospital
+    ResourceEntry r2_blood = { "O-", 2, "General Hospital", "O-", 5, "N/A", 0, 14 };
+    ResourceEntry r2_oxy   = { "Oxygen Cylinder", 2, "General Hospital", "N/A", 0, "Medical Oxygen 50L", 45, 14 };
+    ResourceEntry r2_beds  = { "ICU_BEDS", 2, "General Hospital", "N/A", 0, "N/A", 0, 14 };
 
-    // 3. Blood Inventory: AB+
-    ResourceEntry r3 = {
-        .key = "AB+",
-        .hospitalId = 3,
-        .hospitalName = "St. Jude Hospital",
-        .bloodGroup = "AB+",
-        .bloodUnits = 18,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 22
-    };
+    // 3. Hospital 3: Sunrise Medical Center
+    ResourceEntry r3_blood = { "A+", 3, "Sunrise Medical Center", "A+", 10, "N/A", 0, 22 };
+    ResourceEntry r3_alias = { "Blood", 3, "Sunrise Medical Center", "A+", 10, "N/A", 0, 22 };
+    ResourceEntry r3_ab    = { "AB+", 3, "Sunrise Medical Center", "AB+", 18, "N/A", 0, 22 };
+    ResourceEntry r3_vent  = { "Ventilator", 3, "Sunrise Medical Center", "N/A", 0, "N/A", 0, 10 };
+    ResourceEntry r3_beds  = { "ICU_BEDS", 3, "Sunrise Medical Center", "N/A", 0, "N/A", 0, 22 };
 
-    // 4. Emergency Medication: Paracetamol
-    ResourceEntry r4 = {
-        .key = "Paracetamol",
-        .hospitalId = 1,
-        .hospitalName = "City Hospital",
-        .bloodGroup = "N/A",
-        .bloodUnits = 0,
-        .medicineName = "Paracetamol (500mg IV)",
-        .medicineStock = 350,
-        .availableBeds = 8
-    };
+    // 4. Hospital 4: Apollo Care
+    ResourceEntry r4_vent  = { "Ventilator", 4, "Apollo Care", "N/A", 0, "N/A", 0, 8 };
+    ResourceEntry r4_med   = { "Paracetamol", 4, "Apollo Care", "N/A", 0, "Paracetamol (500mg IV)", 100, 16 };
+    ResourceEntry r4_beds  = { "ICU_BEDS", 4, "Apollo Care", "N/A", 0, "N/A", 0, 16 };
 
-    // 5. Critical Infrastructure: ICU Beds
-    ResourceEntry r5 = {
-        .key = "ICU_BEDS",
-        .hospitalId = 4,
-        .hospitalName = "Apex Heart & Trauma Center",
-        .bloodGroup = "N/A",
-        .bloodUnits = 0,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 16
-    };
+    // 5. Hospital 5: Metro Hospital
+    ResourceEntry r5_blood = { "O-", 5, "Metro Hospital", "O-", 15, "N/A", 0, 12 };
+    ResourceEntry r5_oxy   = { "Oxygen Cylinder", 5, "Metro Hospital", "N/A", 0, "Medical Oxygen 50L", 30, 12 };
+    ResourceEntry r5_beds  = { "ICU_BEDS", 5, "Metro Hospital", "N/A", 0, "N/A", 0, 12 };
 
-    // 6. Generic Blood lookup alias
-    ResourceEntry r6 = {
-        .key = "Blood",
-        .hospitalId = 1,
-        .hospitalName = "City Hospital",
-        .bloodGroup = "A+",
-        .bloodUnits = 12,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 8
-    };
+    // Insert records
+    insert(r1_blood);
+    insert(r1_alias);
+    insert(r1_med);
+    insert(r1_beds);
 
-    // 7. Ventilator lookup
-    ResourceEntry r7 = {
-        .key = "Ventilator",
-        .hospitalId = 4,
-        .hospitalName = "Apex Health",
-        .bloodGroup = "N/A",
-        .bloodUnits = 0,
-        .medicineName = "N/A",
-        .medicineStock = 0,
-        .availableBeds = 10
-    };
+    insert(r2_blood);
+    insert(r2_oxy);
+    insert(r2_beds);
 
-    // 8. Oxygen Cylinder lookup
-    ResourceEntry r8 = {
-        .key = "Oxygen Cylinder",
-        .hospitalId = 2,
-        .hospitalName = "St. Mary Medical",
-        .bloodGroup = "N/A",
-        .bloodUnits = 0,
-        .medicineName = "Medical Oxygen 50L",
-        .medicineStock = 45,
-        .availableBeds = 14
-    };
+    insert(r3_blood);
+    insert(r3_alias);
+    insert(r3_ab);
+    insert(r3_vent);
+    insert(r3_beds);
 
-    // Insert all sample resources into the Hash Map
-    insert(r1);
-    insert(r2);
-    insert(r3);
-    insert(r4);
-    insert(r5);
-    insert(r6);
-    insert(r7);
-    insert(r8);
+    insert(r4_vent);
+    insert(r4_med);
+    insert(r4_beds);
+
+    insert(r5_blood);
+    insert(r5_oxy);
+    insert(r5_beds);
 }

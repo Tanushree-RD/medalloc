@@ -7,6 +7,7 @@
 #include "include/priority_queue.h"
 #include "include/hashmap.h"
 #include "include/graph.h"
+#include "include/dijkstra.h"
 
 #define MAX_STDIN_BUFFER 65536
 
@@ -69,6 +70,19 @@ static bool extractJsonInt(const char *json, const char *key, int *dest) {
 }
 
 /**
+ * Maps a hospital name or string identifier to its graph node ID.
+ */
+static int resolveHospitalIdFromName(const char *name) {
+    if (!name || strlen(name) == 0) return 1;
+    if (strcasecmp(name, "City Hospital") == 0) return 1;
+    if (strcasecmp(name, "General Hospital") == 0) return 2;
+    if (strcasecmp(name, "Sunrise Medical Center") == 0) return 3;
+    if (strcasecmp(name, "Apollo Care") == 0) return 4;
+    if (strcasecmp(name, "Metro Hospital") == 0) return 5;
+    return 1;
+}
+
+/**
  * Creates and enqueues sample emergency patient requests with varying priority levels.
  */
 static void populateSampleRequests(void) {
@@ -76,7 +90,7 @@ static void populateSampleRequests(void) {
         .requestId = 101,
         .patientName = "Elena Gomez",
         .resourceType = "Oxygen Cylinder",
-        .hospital = "St. Mary Medical",
+        .hospital = "General Hospital",
         .priority = PRIORITY_LOW, // 1
         .quantity = 2
     };
@@ -85,7 +99,7 @@ static void populateSampleRequests(void) {
         .requestId = 102,
         .patientName = "David Miller",
         .resourceType = "ICU Bed",
-        .hospital = "Metro General",
+        .hospital = "General Hospital",
         .priority = PRIORITY_MEDIUM, // 2
         .quantity = 1
     };
@@ -94,7 +108,7 @@ static void populateSampleRequests(void) {
         .requestId = 103,
         .patientName = "Sarah Chen",
         .resourceType = "Ventilator",
-        .hospital = "Apex Health",
+        .hospital = "General Hospital",
         .priority = PRIORITY_HIGH, // 3
         .quantity = 1
     };
@@ -114,6 +128,7 @@ int main(void) {
     char *input_buffer = (char *)malloc(MAX_STDIN_BUFFER);
     size_t total_bytes = 0;
     size_t bytes_read = 0;
+    int patientLocation = 2; // Default to node 2 (General Hospital)
 
     if (input_buffer) {
         while ((bytes_read = fread(input_buffer + total_bytes, 1, MAX_STDIN_BUFFER - 1 - total_bytes, stdin)) > 0) {
@@ -126,15 +141,15 @@ int main(void) {
     // 3. Populate base emergency patient requests in Priority Queue
     populateSampleRequests();
 
-    // 4. If an external request arrived via stdin (e.g. from Express API), parse and enqueue it
+    // 4. Parse incoming JSON request from stdin (e.g. from Express API)
     if (input_buffer && total_bytes > 0) {
         char *trimmed = trim_whitespace(input_buffer);
         if (trimmed[0] == '{') {
             PatientRequest incoming = {
                 .requestId = 104,
                 .patientName = "Incoming Patient",
-                .resourceType = "Blood",
-                .hospital = "City Emergency Hub",
+                .resourceType = "Ventilator",
+                .hospital = "General Hospital",
                 .priority = PRIORITY_CRITICAL,
                 .quantity = 1
             };
@@ -144,6 +159,7 @@ int main(void) {
             char hosp[64] = {0};
             char prioStr[32] = {0};
             int qty = 1;
+            int locId = 0;
 
             if (extractJsonString(trimmed, "patientName", pName, sizeof(pName))) {
                 strncpy(incoming.patientName, pName, sizeof(incoming.patientName) - 1);
@@ -154,6 +170,13 @@ int main(void) {
             }
             if (extractJsonString(trimmed, "hospital", hosp, sizeof(hosp))) {
                 strncpy(incoming.hospital, hosp, sizeof(incoming.hospital) - 1);
+                patientLocation = resolveHospitalIdFromName(hosp);
+            }
+            if (extractJsonInt(trimmed, "patientLocation", &locId) ||
+                extractJsonInt(trimmed, "locationId", &locId)) {
+                if (locId >= 1 && locId <= 5) {
+                    patientLocation = locId;
+                }
             }
             if (extractJsonString(trimmed, "priority", prioStr, sizeof(prioStr))) {
                 incoming.priority = stringToPriority(prioStr);
@@ -173,38 +196,93 @@ int main(void) {
     // 5. Output data structures state to stderr for telemetry
     printQueue();
     printHashMap();
+    printGraph();
 
-    // 6. Dequeue the highest-priority emergency patient request (Max Heap root)
+    // 6. Step 1: Dequeue the highest-priority emergency patient request (Max Heap root)
     PatientRequest processed = dequeue();
 
-    // 7. Perform O(1) average lookup in Hash Map for requested resource
-    ResourceEntry *matchedResource = search(processed.resourceType);
-
-    // Fallback alias lookup if direct name differs slightly (e.g., "ICU Bed" -> "ICU_BEDS")
-    if (!matchedResource) {
-        if (strcasecmp(processed.resourceType, "ICU Bed") == 0 ||
-            strcasecmp(processed.resourceType, "ICU Beds") == 0) {
-            matchedResource = search("ICU_BEDS");
-        } else if (strcasecmp(processed.resourceType, "Blood") == 0) {
-            matchedResource = search("A+");
+    // If request specifies hospital location, update patientLocation
+    if (strlen(processed.hospital) > 0) {
+        int resolved = resolveHospitalIdFromName(processed.hospital);
+        if (resolved >= 1 && resolved <= 5) {
+            patientLocation = resolved;
         }
     }
 
-    // 8. Display the connected hospital network graph
-    printGraph();
+    // 7. Step 2: Get all hospitals containing the required resource from the Hash Map
+    int candidateHospitals[MAX_HOSPITALS];
+    int candidateCount = getHospitalsWithResource(processed.resourceType, candidateHospitals, MAX_HOSPITALS);
+
+    // Check alias lookup if not found directly (e.g., "Blood" -> "A+", "ICU Bed" -> "ICU_BEDS")
+    if (candidateCount == 0) {
+        if (strcasecmp(processed.resourceType, "ICU Bed") == 0 ||
+            strcasecmp(processed.resourceType, "ICU Beds") == 0) {
+            candidateCount = getHospitalsWithResource("ICU_BEDS", candidateHospitals, MAX_HOSPITALS);
+        } else if (strcasecmp(processed.resourceType, "Blood") == 0) {
+            candidateCount = getHospitalsWithResource("A+", candidateHospitals, MAX_HOSPITALS);
+        }
+    }
+
+    // Fallback: If no candidate found via list, try single search
+    ResourceEntry *matchedSingle = search(processed.resourceType);
+    if (candidateCount == 0 && matchedSingle) {
+        candidateHospitals[0] = matchedSingle->hospitalId;
+        candidateCount = 1;
+    }
+
+    // 8. Step 3: Run Dijkstra's Algorithm from the patient's location
     Graph *hospitalGraph = getGraph();
+    dijkstra(hospitalGraph, patientLocation);
 
-    // Determine hospital name where resource is located
-    const char *resourceHospital = matchedResource ? matchedResource->hospitalName : "City Hospital";
+    // 9. Steps 4 & 5: Compare distances to all candidate hospitals and select the closest
+    int selectedHospitalId = -1;
+    int shortestDist = INF;
 
-    // 9. Output JSON response to stdout
+    for (int i = 0; i < candidateCount; i++) {
+        int hId = candidateHospitals[i];
+        int d = getShortestDistance(hId);
+        if (d < shortestDist) {
+            shortestDist = d;
+            selectedHospitalId = hId;
+        }
+    }
+
+    // If no candidate hospital has stock, fallback to default nearest hospital
+    if (selectedHospitalId == -1) {
+        selectedHospitalId = (patientLocation == 3) ? 1 : 3;
+        shortestDist = getShortestDistance(selectedHospitalId);
+    }
+
+    // 10. Reconstruct shortest path from patient location to selected hospital
+    int *pathNodes = getPath(selectedHospitalId);
+    printShortestPath(selectedHospitalId);
+
+    // Get name of selected hospital
+    int selIdx = findHospitalIndex(selectedHospitalId);
+    const char *selName = (selIdx != -1) ? hospitalGraph->hospitals[selIdx].hospitalName : "Hospital";
+
+    // 11. Format and return structured JSON response to stdout
     printf("{\n");
     printf("  \"success\": true,\n");
-    printf("  \"resourceHospital\": \"%s\",\n", resourceHospital);
-    printf("  \"graph\": {\n");
-    printf("    \"nodes\": %d,\n", hospitalGraph ? hospitalGraph->numNodes : 0);
-    printf("    \"edges\": %d\n", hospitalGraph ? hospitalGraph->numEdges : 0);
+    printf("  \"selectedHospital\": {\n");
+    printf("    \"id\": %d,\n", selectedHospitalId);
+    printf("    \"name\": \"%s\"\n", selName);
     printf("  },\n");
+    printf("  \"distance\": %d,\n", (shortestDist == INF) ? 0 : shortestDist);
+    printf("  \"path\": [\n");
+    printf("    \"Patient\"");
+
+    if (pathNodes) {
+        for (int i = 0; pathNodes[i] != -1; i++) {
+            int hId = pathNodes[i];
+            int hIdx = findHospitalIndex(hId);
+            const char *nodeName = (hIdx != -1) ? hospitalGraph->hospitals[hIdx].hospitalName : "Hospital";
+            printf(",\n    \"%s\"", nodeName);
+        }
+        free(pathNodes);
+    }
+    printf("\n  ],\n");
+
     printf("  \"processedRequest\": {\n");
     printf("    \"requestId\": %d,\n", processed.requestId);
     printf("    \"patientName\": \"%s\",\n", processed.patientName);
@@ -213,31 +291,12 @@ int main(void) {
     printf("    \"priority\": %d,\n", processed.priority);
     printf("    \"priorityLevel\": \"%s\",\n", priorityToString(processed.priority));
     printf("    \"quantity\": %d\n", processed.quantity);
-    printf("  },\n");
-
-    if (matchedResource) {
-        int availableUnits = matchedResource->bloodUnits > 0 
-                             ? matchedResource->bloodUnits 
-                             : (matchedResource->medicineStock > 0 
-                                ? matchedResource->medicineStock 
-                                : matchedResource->availableBeds);
-
-        printf("  \"resourceFound\": true,\n");
-        printf("  \"resource\": {\n");
-        printf("    \"hospitalName\": \"%s\",\n", matchedResource->hospitalName);
-        printf("    \"bloodGroup\": \"%s\",\n", matchedResource->bloodGroup);
-        printf("    \"availableUnits\": %d\n", availableUnits);
-        printf("  }\n");
-    } else {
-        printf("  \"resourceFound\": false,\n");
-        printf("  \"resource\": null\n");
-    }
-
+    printf("  }\n");
     printf("}\n");
 
     fflush(stdout);
 
-    // Free all dynamically allocated memory
+    // 12. Free dynamically allocated structures
     freeGraph();
     freeHashMap();
 

@@ -99,4 +99,14 @@ void freeHashMap(void);
  */
 void populateSampleInventory(void);
 
+/**
+ * Searches for all hospitals that have a given resource in inventory.
+ * 
+ * @param resourceKey Key to search (e.g. "A+", "Ventilator", "Paracetamol", "ICU_BEDS")
+ * @param outHospitalIds Array to store matched hospital IDs
+ * @param maxResults Maximum elements to populate in outHospitalIds
+ * @return Number of matching hospitals found
+ */
+int getHospitalsWithResource(const char *resourceKey, int outHospitalIds[], int maxResults);
+
 #endif /* HASHMAP_H */

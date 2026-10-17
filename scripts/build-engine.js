@@ -13,11 +13,11 @@ const isWindows = process.platform === 'win32';
 const targetName = isWindows ? 'allocator.exe' : 'allocator';
 const targetPath = path.join(buildDir, targetName);
 
-console.log('[MedAlloc Engine] Compiling C Algorithm Engine with Priority Queue, Hash Map & Graph modules...');
+console.log('[MedAlloc Engine] Compiling C Algorithm Engine with Priority Queue, Hash Map, Graph & Dijkstra modules...');
 
 try {
   // Compile allocator.c and all source modules in src/
-  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c src/priority_queue.c src/hashmap.c src/graph.c -o "${targetPath}"`;
+  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c src/priority_queue.c src/hashmap.c src/graph.c src/dijkstra.c -o "${targetPath}"`;
   execSync(cmd, { cwd: dsaDir, stdio: 'inherit' });
   console.log(`[MedAlloc Engine] Compilation succeeded: ${targetPath}`);
 } catch (err) {
