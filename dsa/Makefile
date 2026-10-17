@@ -5,8 +5,8 @@ CC = gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -O2 -Iinclude -I.
 
 BUILD_DIR = build
-SRCS = allocator.c src/priority_queue.c src/hashmap.c src/graph.c src/dijkstra.c src/bipartite_matching.c
-HEADERS = allocator.h include/priority_queue.h include/hashmap.h include/graph.h include/dijkstra.h include/bipartite_matching.h
+SRCS = allocator.c src/priority_queue.c src/hashmap.c src/graph.c src/dijkstra.c src/bipartite_matching.c src/allocation_engine.c
+HEADERS = allocator.h include/priority_queue.h include/hashmap.h include/graph.h include/dijkstra.h include/bipartite_matching.h include/allocation_engine.h
 
 ifeq ($(OS),Windows_NT)
 	TARGET = $(BUILD_DIR)/allocator.exe

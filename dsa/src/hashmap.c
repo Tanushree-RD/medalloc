@@ -166,6 +166,93 @@ int getHospitalsWithResource(const char *resourceKey, int outHospitalIds[], int 
 }
 
 /**
+ * Searches for a specific hospital's resource entry by key.
+ */
+ResourceEntry *searchHospitalResource(const char *key, int hospitalId) {
+    if (!g_initialized || !key || *key == '\0') {
+        return NULL;
+    }
+
+    unsigned int bucketIndex = hash(key);
+    HashNode *current = g_buckets[bucketIndex];
+
+    while (current != NULL) {
+        if (strcasecmp(current->key, key) == 0 && current->data.hospitalId == hospitalId) {
+            return &(current->data);
+        }
+        current = current->next;
+    }
+
+    return NULL;
+}
+
+/**
+ * Returns currently available stock units for a resource at a given hospital.
+ */
+int getHospitalResourceStock(const char *key, int hospitalId) {
+    ResourceEntry *entry = searchHospitalResource(key, hospitalId);
+    if (!entry) {
+        if (strcasecmp(key, "A+ Blood") == 0 || strcasecmp(key, "Blood") == 0) {
+            entry = searchHospitalResource("A+", hospitalId);
+        } else if (strcasecmp(key, "ICU Bed") == 0 || strcasecmp(key, "ICU Beds") == 0) {
+            entry = searchHospitalResource("ICU_BEDS", hospitalId);
+        }
+    }
+    if (!entry) return 0;
+
+    if (entry->bloodUnits > 0) return entry->bloodUnits;
+    if (entry->medicineStock > 0) return entry->medicineStock;
+    if (entry->availableBeds > 0) return entry->availableBeds;
+    return 0;
+}
+
+/**
+ * Decrements the stock quantity for a resource at a hospital.
+ */
+bool deductHospitalResourceStock(const char *key, int hospitalId, int quantity) {
+    ResourceEntry *entry = searchHospitalResource(key, hospitalId);
+    if (!entry) {
+        if (strcasecmp(key, "A+ Blood") == 0 || strcasecmp(key, "Blood") == 0) {
+            entry = searchHospitalResource("A+", hospitalId);
+        } else if (strcasecmp(key, "ICU Bed") == 0 || strcasecmp(key, "ICU Beds") == 0) {
+            entry = searchHospitalResource("ICU_BEDS", hospitalId);
+        }
+    }
+    if (!entry) return false;
+
+    bool deducted = false;
+    if (entry->bloodUnits >= quantity && entry->bloodUnits > 0) {
+        entry->bloodUnits -= quantity;
+        deducted = true;
+    } else if (entry->medicineStock >= quantity && entry->medicineStock > 0) {
+        entry->medicineStock -= quantity;
+        deducted = true;
+    } else if (entry->availableBeds >= quantity && entry->availableBeds > 0) {
+        entry->availableBeds -= quantity;
+        deducted = true;
+    }
+
+    // Also sync alias records if any
+    if (deducted) {
+        if (strcasecmp(key, "A+") == 0 || strcasecmp(key, "A+ Blood") == 0 || strcasecmp(key, "Blood") == 0) {
+            ResourceEntry *a1 = searchHospitalResource("A+", hospitalId);
+            ResourceEntry *a2 = searchHospitalResource("Blood", hospitalId);
+            ResourceEntry *a3 = searchHospitalResource("A+ Blood", hospitalId);
+            if (a1) a1->bloodUnits = entry->bloodUnits;
+            if (a2) a2->bloodUnits = entry->bloodUnits;
+            if (a3) a3->bloodUnits = entry->bloodUnits;
+        } else if (strcasecmp(key, "ICU_BEDS") == 0 || strcasecmp(key, "ICU Bed") == 0 || strcasecmp(key, "ICU Beds") == 0) {
+            ResourceEntry *b1 = searchHospitalResource("ICU_BEDS", hospitalId);
+            ResourceEntry *b2 = searchHospitalResource("ICU Bed", hospitalId);
+            if (b1) b1->availableBeds = entry->availableBeds;
+            if (b2) b2->availableBeds = entry->availableBeds;
+        }
+    }
+
+    return deducted;
+}
+
+/**
  * Removes an entry matching the given key from the hash map.
  * 
  * Average Time Complexity: O(1)
@@ -312,4 +399,21 @@ void populateSampleInventory(void) {
     insert(r5_blood);
     insert(r5_oxy);
     insert(r5_beds);
+
+    // Direct user-facing aliases
+    ResourceEntry r1_blood_full = { "A+ Blood", 1, "City Hospital", "A+", 12, "N/A", 0, 8 };
+    ResourceEntry r3_blood_full = { "A+ Blood", 3, "Sunrise Medical Center", "A+", 10, "N/A", 0, 22 };
+    insert(r1_blood_full);
+    insert(r3_blood_full);
+
+    ResourceEntry r1_icu = { "ICU Bed", 1, "City Hospital", "N/A", 0, "N/A", 0, 8 };
+    ResourceEntry r2_icu = { "ICU Bed", 2, "General Hospital", "N/A", 0, "N/A", 0, 14 };
+    ResourceEntry r3_icu = { "ICU Bed", 3, "Sunrise Medical Center", "N/A", 0, "N/A", 0, 22 };
+    ResourceEntry r4_icu = { "ICU Bed", 4, "Apollo Care", "N/A", 0, "N/A", 0, 16 };
+    ResourceEntry r5_icu = { "ICU Bed", 5, "Metro Hospital", "N/A", 0, "N/A", 0, 12 };
+    insert(r1_icu);
+    insert(r2_icu);
+    insert(r3_icu);
+    insert(r4_icu);
+    insert(r5_icu);
 }

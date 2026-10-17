@@ -109,4 +109,32 @@ void populateSampleInventory(void);
  */
 int getHospitalsWithResource(const char *resourceKey, int outHospitalIds[], int maxResults);
 
+/**
+ * Searches for a specific hospital's resource entry by key.
+ * 
+ * @param key Resource key (e.g. "A+", "Ventilator", "ICU_BEDS")
+ * @param hospitalId Unique hospital ID
+ * @return Pointer to matching ResourceEntry, or NULL if not found
+ */
+ResourceEntry *searchHospitalResource(const char *key, int hospitalId);
+
+/**
+ * Returns currently available stock units for a resource at a given hospital.
+ * 
+ * @param key Resource key
+ * @param hospitalId Unique hospital ID
+ * @return Available units in stock, or 0 if not found
+ */
+int getHospitalResourceStock(const char *key, int hospitalId);
+
+/**
+ * Decrements the stock quantity for a resource at a hospital.
+ * 
+ * @param key Resource key
+ * @param hospitalId Unique hospital ID
+ * @param quantity Units to deduct
+ * @return true if successfully deducted, false otherwise
+ */
+bool deductHospitalResourceStock(const char *key, int hospitalId, int quantity);
+
 #endif /* HASHMAP_H */

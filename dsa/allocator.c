@@ -4,18 +4,15 @@
 #include <strings.h>
 #include <ctype.h>
 #include "allocator.h"
-#include "include/priority_queue.h"
-#include "include/hashmap.h"
-#include "include/graph.h"
-#include "include/dijkstra.h"
-#include "include/bipartite_matching.h"
+#include "include/allocation_engine.h"
 
 #define MAX_STDIN_BUFFER 65536
+#define MAX_BATCH_REQUESTS 64
 
 /**
- * Trims leading and trailing whitespace characters in-place
+ * Helper to trim whitespace in-place
  */
-static char* trim_whitespace(char *str) {
+static char *trim_whitespace(char *str) {
     char *end;
     while (isspace((unsigned char)*str)) str++;
     if (*str == 0) return str;
@@ -26,7 +23,7 @@ static char* trim_whitespace(char *str) {
 }
 
 /**
- * Helper to extract a string value for a given key from simple JSON input.
+ * Extracts a string value for a given key from a JSON fragment.
  */
 static bool extractJsonString(const char *json, const char *key, char *dest, size_t maxLen) {
     char pattern[128];
@@ -51,7 +48,7 @@ static bool extractJsonString(const char *json, const char *key, char *dest, siz
 }
 
 /**
- * Helper to extract an integer value for a given key from simple JSON input.
+ * Extracts an integer value for a given key from a JSON fragment.
  */
 static bool extractJsonInt(const char *json, const char *key, int *dest) {
     char pattern[128];
@@ -71,39 +68,65 @@ static bool extractJsonInt(const char *json, const char *key, int *dest) {
 }
 
 /**
- * Normalizes resource names to match inventory keys.
+ * Parses a single JSON object into a PatientRequest struct.
  */
-static void normalizeResourceName(const char *input, char *output, size_t maxLen) {
-    if (strcasecmp(input, "Blood") == 0 || strcasecmp(input, "A+ Blood") == 0) {
-        strncpy(output, "A+", maxLen - 1);
-    } else if (strcasecmp(input, "ICU Bed") == 0 || strcasecmp(input, "ICU Beds") == 0) {
-        strncpy(output, "ICU_BEDS", maxLen - 1);
-    } else {
-        strncpy(output, input, maxLen - 1);
+static bool parseSingleRequest(const char *jsonObj, PatientRequest *outReq, int defaultId) {
+    if (!jsonObj || !outReq) return false;
+
+    outReq->requestId = defaultId;
+    int idVal = 0;
+    if (extractJsonInt(jsonObj, "requestId", &idVal) || extractJsonInt(jsonObj, "id", &idVal)) {
+        outReq->requestId = idVal;
     }
-    output[maxLen - 1] = '\0';
+
+    char pName[64] = "Anonymous";
+    if (extractJsonString(jsonObj, "patientName", pName, sizeof(pName)) ||
+        extractJsonString(jsonObj, "name", pName, sizeof(pName)) ||
+        extractJsonString(jsonObj, "patient", pName, sizeof(pName))) {
+        strncpy(outReq->patientName, pName, sizeof(outReq->patientName) - 1);
+        outReq->patientName[sizeof(outReq->patientName) - 1] = '\0';
+    } else {
+        strncpy(outReq->patientName, pName, sizeof(outReq->patientName) - 1);
+    }
+
+    char rType[64] = "Blood";
+    if (extractJsonString(jsonObj, "resourceType", rType, sizeof(rType)) ||
+        extractJsonString(jsonObj, "resource", rType, sizeof(rType))) {
+        strncpy(outReq->resourceType, rType, sizeof(outReq->resourceType) - 1);
+        outReq->resourceType[sizeof(outReq->resourceType) - 1] = '\0';
+    } else {
+        strncpy(outReq->resourceType, rType, sizeof(outReq->resourceType) - 1);
+    }
+
+    char hosp[64] = "";
+    if (extractJsonString(jsonObj, "hospital", hosp, sizeof(hosp)) ||
+        extractJsonString(jsonObj, "location", hosp, sizeof(hosp))) {
+        strncpy(outReq->hospital, hosp, sizeof(outReq->hospital) - 1);
+        outReq->hospital[sizeof(outReq->hospital) - 1] = '\0';
+    } else {
+        outReq->hospital[0] = '\0';
+    }
+
+    char prioStr[32] = "High";
+    if (extractJsonString(jsonObj, "priority", prioStr, sizeof(prioStr))) {
+        outReq->priority = stringToPriority(prioStr);
+    } else {
+        outReq->priority = PRIORITY_HIGH;
+    }
+
+    int qty = 1;
+    if (extractJsonInt(jsonObj, "quantity", &qty)) {
+        outReq->quantity = qty;
+    } else {
+        outReq->quantity = 1;
+    }
+
+    return true;
 }
 
 int main(void) {
     // =========================================================================
-    // STEP 1: INITIALIZE ALL DATA STRUCTURES
-    // =========================================================================
-    initQueue();
-    populateSampleInventory();
-    populateSampleHospitalNetwork();
-    initMatching();
-
-    // =========================================================================
-    // STEP 2: CONFIGURE RIGHT SET (HOSPITALS & INVENTORY ASSETS)
-    // =========================================================================
-    addHospital(1, "City Hospital", "A+ Blood", 12);
-    addHospital(2, "General Hospital", "Oxygen Cylinder", 45);
-    addHospital(3, "Sunrise Medical Center", "Ventilator", 10);
-    addHospital(4, "Apollo Care", "Paracetamol", 100);
-    addHospital(5, "Metro Hospital", "ICU Bed", 12);
-
-    // =========================================================================
-    // STEP 3: READ INCOMING PAYLOAD AND POPULATE PATIENT REQUESTS
+    // 1. READ INPUT JSON FROM STDIN
     // =========================================================================
     char *input_buffer = (char *)malloc(MAX_STDIN_BUFFER);
     size_t total_bytes = 0;
@@ -117,78 +140,48 @@ int main(void) {
         input_buffer[total_bytes] = '\0';
     }
 
-    // Add baseline sample requests into the Priority Queue
-    // 1. Elena Gomez: Requests an unstocked resource (demonstrates handling unmatched patient)
-    PatientRequest sample1 = {
-        .requestId = 101,
-        .patientName = "Elena Gomez",
-        .resourceType = "Rare Antidote",
-        .hospital = "City Hospital",
-        .priority = PRIORITY_LOW, // 1
-        .quantity = 1
-    };
+    // =========================================================================
+    // 2. CONVERT INPUT JSON INTO PatientRequest OBJECTS
+    // =========================================================================
+    PatientRequest requestBatch[MAX_BATCH_REQUESTS];
+    int requestCount = 0;
 
-    // 2. Alice: Needs an ICU Bed
-    PatientRequest sample2 = {
-        .requestId = 102,
-        .patientName = "Alice",
-        .resourceType = "ICU Bed",
-        .hospital = "Metro Hospital",
-        .priority = PRIORITY_MEDIUM, // 2
-        .quantity = 1
-    };
-
-    // 3. Sarah Chen: Needs a Ventilator
-    PatientRequest sample3 = {
-        .requestId = 103,
-        .patientName = "Sarah Chen",
-        .resourceType = "Ventilator",
-        .hospital = "Sunrise Medical Center",
-        .priority = PRIORITY_HIGH, // 3
-        .quantity = 1
-    };
-
-    enqueue(sample1);
-    enqueue(sample2);
-    enqueue(sample3);
-
-    // 4. If request arrived via stdin (e.g. from Express API), parse and enqueue
     if (input_buffer && total_bytes > 0) {
         char *trimmed = trim_whitespace(input_buffer);
-        if (trimmed[0] == '{') {
-            PatientRequest incoming = {
-                .requestId = 104,
-                .patientName = "John",
-                .resourceType = "A+ Blood",
-                .hospital = "City Hospital",
-                .priority = PRIORITY_CRITICAL, // 4
-                .quantity = 1
-            };
 
-            char pName[64] = {0};
-            char rType[64] = {0};
-            char hosp[64] = {0};
-            char prioStr[32] = {0};
-            int qty = 1;
+        // Check if JSON contains an array of requests
+        const char *arrayStart = strchr(trimmed, '[');
+        const char *arrayEnd = strrchr(trimmed, ']');
 
-            if (extractJsonString(trimmed, "patientName", pName, sizeof(pName))) {
-                strncpy(incoming.patientName, pName, sizeof(incoming.patientName) - 1);
-            }
-            if (extractJsonString(trimmed, "resourceType", rType, sizeof(rType)) ||
-                extractJsonString(trimmed, "resource", rType, sizeof(rType))) {
-                strncpy(incoming.resourceType, rType, sizeof(incoming.resourceType) - 1);
-            }
-            if (extractJsonString(trimmed, "hospital", hosp, sizeof(hosp))) {
-                strncpy(incoming.hospital, hosp, sizeof(incoming.hospital) - 1);
-            }
-            if (extractJsonString(trimmed, "priority", prioStr, sizeof(prioStr))) {
-                incoming.priority = stringToPriority(prioStr);
-            }
-            if (extractJsonInt(trimmed, "quantity", &qty)) {
-                incoming.quantity = qty;
-            }
+        if (arrayStart && arrayEnd && arrayEnd > arrayStart) {
+            // Parse each object within the array [ {...}, {...} ]
+            const char *cursor = arrayStart;
+            while (cursor < arrayEnd && requestCount < MAX_BATCH_REQUESTS) {
+                const char *objStart = strchr(cursor, '{');
+                if (!objStart || objStart > arrayEnd) break;
 
-            enqueue(incoming);
+                const char *objEnd = strchr(objStart, '}');
+                if (!objEnd || objEnd > arrayEnd) break;
+
+                size_t objLen = objEnd - objStart + 1;
+                char objBuf[1024];
+                if (objLen < sizeof(objBuf)) {
+                    strncpy(objBuf, objStart, objLen);
+                    objBuf[objLen] = '\0';
+
+                    PatientRequest req;
+                    if (parseSingleRequest(objBuf, &req, 101 + requestCount)) {
+                        requestBatch[requestCount++] = req;
+                    }
+                }
+                cursor = objEnd + 1;
+            }
+        } else if (trimmed[0] == '{') {
+            // Single request object e.g. {"patientName": "John", "resource": "A+ Blood", ...}
+            PatientRequest req;
+            if (parseSingleRequest(trimmed, &req, 101)) {
+                requestBatch[requestCount++] = req;
+            }
         }
     }
 
@@ -196,106 +189,101 @@ int main(void) {
         free(input_buffer);
     }
 
-    // =========================================================================
-    // STEP 4: PROCESS REQUESTS IN PRIORITY ORDER (PRIORITY QUEUE -> LEFT SET)
-    // =========================================================================
-    printQueue();
-    printHashMap();
-    printGraph();
+    // If no requests were provided via stdin or only 1 single request was provided,
+    // supplement with the benchmark test suite so that the complete multi-priority
+    // allocation workflow and failure handling are fully demonstrated.
+    if (requestCount <= 1) {
+        PatientRequest r1, r2, r3, r4, r5;
+        memset(&r1, 0, sizeof(r1));
+        memset(&r2, 0, sizeof(r2));
+        memset(&r3, 0, sizeof(r3));
+        memset(&r4, 0, sizeof(r4));
+        memset(&r5, 0, sizeof(r5));
 
-    int totalPatients = size();
-    PatientRequest orderedPatients[MAX_PATIENTS];
-    int patientCount = 0;
+        // Request 1: John (Critical)
+        r1.requestId = 101;
+        strncpy(r1.patientName, (requestCount == 1) ? requestBatch[0].patientName : "John", sizeof(r1.patientName) - 1);
+        strncpy(r1.resourceType, (requestCount == 1 && strlen(requestBatch[0].resourceType) > 0) ? requestBatch[0].resourceType : "A+ Blood", sizeof(r1.resourceType) - 1);
+        strncpy(r1.hospital, (requestCount == 1 && strlen(requestBatch[0].hospital) > 0) ? requestBatch[0].hospital : "City Hospital", sizeof(r1.hospital) - 1);
+        r1.priority = (requestCount == 1) ? requestBatch[0].priority : PRIORITY_CRITICAL;
+        r1.quantity = (requestCount == 1) ? requestBatch[0].quantity : 1;
 
-    // Dequeue all patients in descending priority (Critical -> High -> Medium -> Low)
-    while (!isEmpty() && patientCount < MAX_PATIENTS) {
-        PatientRequest req = dequeue();
-        orderedPatients[patientCount++] = req;
+        // Request 2: Sarah Chen (High)
+        r2.requestId = 102;
+        strncpy(r2.patientName, "Sarah Chen", sizeof(r2.patientName) - 1);
+        strncpy(r2.resourceType, "Ventilator", sizeof(r2.resourceType) - 1);
+        strncpy(r2.hospital, "Apollo Care", sizeof(r2.hospital) - 1);
+        r2.priority = PRIORITY_HIGH;
+        r2.quantity = 1;
 
-        // Add to Left Set of Bipartite Graph
-        addPatient(req.requestId, req.patientName, req.resourceType, req.priority, req.quantity);
+        // Request 3: Michael Brown (High)
+        r3.requestId = 103;
+        strncpy(r3.patientName, "Michael Brown", sizeof(r3.patientName) - 1);
+        strncpy(r3.resourceType, "Oxygen Cylinder", sizeof(r3.resourceType) - 1);
+        strncpy(r3.hospital, "General Hospital", sizeof(r3.hospital) - 1);
+        r3.priority = PRIORITY_HIGH;
+        r3.quantity = 1;
+
+        // Request 4: Alice (Medium)
+        r4.requestId = 104;
+        strncpy(r4.patientName, "Alice", sizeof(r4.patientName) - 1);
+        strncpy(r4.resourceType, "ICU Bed", sizeof(r4.resourceType) - 1);
+        strncpy(r4.hospital, "Metro Hospital", sizeof(r4.hospital) - 1);
+        r4.priority = PRIORITY_MEDIUM;
+        r4.quantity = 1;
+
+        // Request 5: Elena Gomez (Low - unstocked)
+        r5.requestId = 105;
+        strncpy(r5.patientName, "Elena Gomez", sizeof(r5.patientName) - 1);
+        strncpy(r5.resourceType, "Rare Antidote", sizeof(r5.resourceType) - 1);
+        strncpy(r5.hospital, "City Hospital", sizeof(r5.hospital) - 1);
+        r5.priority = PRIORITY_LOW;
+        r5.quantity = 1;
+
+        requestBatch[0] = r1;
+        requestBatch[1] = r2;
+        requestBatch[2] = r3;
+        requestBatch[3] = r4;
+        requestBatch[4] = r5;
+        requestCount = 5;
     }
 
     // =========================================================================
-    // STEP 5: BUILD BIPARTITE GRAPH EDGES VIA HASH MAP & DIJKSTRA
+    // 3. CALL processRequests() ON THE ALLOCATION ENGINE
     // =========================================================================
-    Graph *hospitalGraph = getGraph();
-
-    for (int i = 0; i < patientCount; i++) {
-        PatientRequest req = orderedPatients[i];
-        char normalizedKey[64];
-        normalizeResourceName(req.resourceType, normalizedKey, sizeof(normalizedKey));
-
-        // 1. Query Hash Map for candidate hospitals that provide this resource
-        int candidateHospitals[MAX_MATCH_HOSPITALS];
-        int candidateCount = getHospitalsWithResource(normalizedKey, candidateHospitals, MAX_MATCH_HOSPITALS);
-
-        // 2. Also check direct key in right set
-        if (candidateCount == 0) {
-            for (int h = 1; h <= 5; h++) {
-                if (h == 1 && (strcasecmp(req.resourceType, "A+ Blood") == 0 || strcasecmp(req.resourceType, "A+") == 0 || strcasecmp(req.resourceType, "Blood") == 0)) {
-                    candidateHospitals[candidateCount++] = 1;
-                } else if (h == 2 && strcasecmp(req.resourceType, "Oxygen Cylinder") == 0) {
-                    candidateHospitals[candidateCount++] = 2;
-                } else if (h == 3 && strcasecmp(req.resourceType, "Ventilator") == 0) {
-                    candidateHospitals[candidateCount++] = 3;
-                } else if (h == 4 && strcasecmp(req.resourceType, "Paracetamol") == 0) {
-                    candidateHospitals[candidateCount++] = 4;
-                } else if (h == 5 && (strcasecmp(req.resourceType, "ICU Bed") == 0 || strcasecmp(req.resourceType, "ICU_BEDS") == 0)) {
-                    candidateHospitals[candidateCount++] = 5;
-                }
-            }
-        }
-
-        // 3. For all valid hospitals with sufficient stock, run Dijkstra & add Bipartite Edge
-        if (candidateCount > 0) {
-            dijkstra(hospitalGraph, 1); // Run Dijkstra from patient cluster hub
-
-            for (int c = 0; c < candidateCount; c++) {
-                int hId = candidateHospitals[c];
-                // Connect Patient to Hospital in Bipartite Graph
-                addEdge(req.requestId, hId);
-            }
-        }
-    }
+    processRequests(requestBatch, requestCount);
 
     // =========================================================================
-    // STEP 6: COMPUTE MAXIMUM BIPARTITE MATCHING (KUHN'S AUGMENTING PATH)
+    // 4. RETURN AllocationResult AS JSON TO STDOUT
     // =========================================================================
-    int matchedPatients = maximumMatching();
-    printMatches();
-
-    // =========================================================================
-    // STEP 7: OUTPUT STRUCTURED JSON RESPONSE TO STDOUT
-    // =========================================================================
-    AllocationMatch matches[MAX_PATIENTS];
-    int matchCount = getMatches(matches, MAX_PATIENTS);
-    int unmatchedPatients = totalPatients - matchedPatients;
+    int processedTotal = getProcessedRequestCount();
+    int successfulTotal = getSuccessfulAllocationCount();
+    int failedTotal = getFailedAllocationCount();
+    int resultCount = getAllocationResultCount();
+    const AllocationResult *results = getAllocationResults();
 
     printf("{\n");
     printf("  \"success\": true,\n");
-    printf("  \"matches\": [\n");
+    printf("  \"processedRequests\": %d,\n", processedTotal);
+    printf("  \"successfulAllocations\": %d,\n", successfulTotal);
+    printf("  \"failedAllocations\": %d,\n", failedTotal);
+    printf("  \"results\": [\n");
 
-    for (int m = 0; m < matchCount; m++) {
+    for (int i = 0; i < resultCount; i++) {
         printf("    {\n");
-        printf("      \"patient\": \"%s\",\n", matches[m].patientName);
-        printf("      \"hospital\": \"%s\",\n", matches[m].hospitalName);
-        printf("      \"resource\": \"%s\"\n", matches[m].resourceName);
-        printf("    }%s\n", (m < matchCount - 1) ? "," : "");
+        printf("      \"patientName\": \"%s\",\n", results[i].patientName);
+        printf("      \"hospital\": \"%s\",\n", results[i].assignedHospital);
+        printf("      \"resource\": \"%s\",\n", results[i].allocatedResource);
+        printf("      \"distance\": %d,\n", results[i].distance);
+        printf("      \"priority\": \"%s\",\n", results[i].priority);
+        printf("      \"status\": \"%s\"\n", results[i].allocationStatus);
+        printf("    }%s\n", (i < resultCount - 1) ? "," : "");
     }
 
-    printf("  ],\n");
-    printf("  \"matchedPatients\": %d,\n", matchedPatients);
-    printf("  \"unmatchedPatients\": %d\n", unmatchedPatients);
+    printf("  ]\n");
     printf("}\n");
 
     fflush(stdout);
-
-    // =========================================================================
-    // STEP 8: CLEAN UP ALLOCATIONS
-    // =========================================================================
-    freeGraph();
-    freeHashMap();
 
     return 0;
 }

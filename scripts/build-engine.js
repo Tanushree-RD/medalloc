@@ -17,7 +17,7 @@ console.log('[MedAlloc Engine] Compiling C Algorithm Engine with Priority Queue,
 
 try {
   // Compile allocator.c and all source modules in src/
-  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c src/priority_queue.c src/hashmap.c src/graph.c src/dijkstra.c src/bipartite_matching.c -o "${targetPath}"`;
+  const cmd = `gcc -std=c11 -Wall -Wextra -O2 -Iinclude -I. allocator.c src/priority_queue.c src/hashmap.c src/graph.c src/dijkstra.c src/bipartite_matching.c src/allocation_engine.c -o "${targetPath}"`;
   execSync(cmd, { cwd: dsaDir, stdio: 'inherit' });
   console.log(`[MedAlloc Engine] Compilation succeeded: ${targetPath}`);
 } catch (err) {
