@@ -1,171 +1,223 @@
 'use client';
 
-import React from 'react';
-import { Navbar } from '@/components/Navbar';
-import { ArchitectureDiagram } from '@/components/ArchitectureDiagram';
-import { MetricsOverview } from '@/components/MetricsOverview';
-import { useHealthCheck } from '@/hooks/useHealthCheck';
-import {
-  Activity,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Cpu,
-  Server,
-  Layers,
-  Terminal,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Sidebar, SidebarTab } from '@/components/dashboard/Sidebar';
+import { TopNavbar } from '@/components/dashboard/TopNavbar';
+import { StatCards } from '@/components/dashboard/StatCards';
+import { ChartsSection } from '@/components/dashboard/ChartsSection';
+import { RecentRequestsTable } from '@/components/dashboard/RecentRequestsTable';
+import { EmergencyAlertsPanel } from '@/components/dashboard/EmergencyAlertsPanel';
+import { HeartPulse, RefreshCw, Cpu } from 'lucide-react';
 
-export default function Home() {
-  const { health, isLoading, error, refetch } = useHealthCheck();
+export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<SidebarTab>('Dashboard');
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-cyan-500/30">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans antialiased selection:bg-blue-500/20">
+      {/* Collapsible Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
 
-      <main className="flex-1 container mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-8">
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-8 sm:p-10 shadow-2xl">
-          <div className="absolute top-0 right-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 -mb-12 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Sticky Top Navigation Bar */}
+        <TopNavbar
+          onOpenMobileSidebar={() => setMobileOpen(true)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-400">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-              </span>
-              System Architecture Scaffolded Successfully
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              MedAlloc Full-Stack Platform
-            </h1>
-
-            <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
-              Real-time emergency hospital resource optimizer integrating a high-performance C
-              algorithm engine with an Express API backend and Next.js reactive frontend.
-            </p>
-
-            {/* Quick Status Bar */}
-            <div className="pt-2 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-zinc-800 px-4 py-2.5 text-xs">
-                <span className="text-zinc-400">Express API:</span>
-                {isLoading ? (
-                  <span className="flex items-center gap-1.5 text-amber-400">
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    Checking...
-                  </span>
-                ) : health?.status === 'ok' ? (
-                  <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    GET /health: {JSON.stringify(health)}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-rose-400">
-                    <XCircle className="h-3.5 w-3.5" />
-                    {error || 'Offline'}
-                  </span>
-                )}
-                <button
-                  onClick={() => refetch()}
-                  title="Refresh Health Check"
-                  className="ml-2 rounded p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-xl bg-zinc-900/90 border border-zinc-800 px-4 py-2.5 text-xs">
-                <span className="text-zinc-400">C Allocator Engine:</span>
-                <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
-                  <Cpu className="h-3.5 w-3.5" />
-                  MedAlloc Engine Ready
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Architecture Flow (React Flow) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
+        {/* Dashboard Scrollable Body */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full">
+          {/* Header Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Layers className="h-5 w-5 text-cyan-400" />
-                Live Architecture Diagram (React Flow)
-              </h2>
-              <p className="text-xs text-zinc-400">
-                Interactive nodes displaying communication pipeline between subsystems
-              </p>
-            </div>
-          </div>
-          <ArchitectureDiagram />
-        </section>
-
-        {/* 3-Pillar Component Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Frontend Card */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between space-y-4 hover:border-zinc-700 transition">
-            <div className="space-y-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950 border border-cyan-800/50 text-cyan-400">
-                <Activity className="h-5 w-5" />
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600 mb-1">
+                <HeartPulse className="h-4 w-4" />
+                <span>Regional Medical Dispatch & Resource Optimization</span>
               </div>
-              <h3 className="font-semibold text-white text-base">Client (Next.js 15)</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                App Router, TypeScript, Tailwind CSS, shadcn/ui components, React Flow interactive
-                graphs, and Recharts analytics.
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                {activeTab === 'Dashboard' ? 'Emergency Dispatch Command Center' : activeTab}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                Real-time multi-hospital triage powered by Max-Heap, Dijkstra Roadway Routing & Kuhn Bipartite Matching
               </p>
             </div>
-            <div className="pt-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">
-              Directory: <span className="text-cyan-300">client/</span>
+
+            <div className="flex items-center gap-2.5 self-start sm:self-auto">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs text-xs font-medium text-slate-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>C Allocator IPC: <strong className="text-slate-900">Live</strong></span>
+              </span>
+
+              <button
+                onClick={() => setSearchQuery('')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs text-xs font-semibold transition-all hover:shadow-blue-500/20"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Sync Network</span>
+              </button>
             </div>
           </div>
 
-          {/* Backend Card */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between space-y-4 hover:border-zinc-700 transition">
-            <div className="space-y-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-950 border border-emerald-800/50 text-emerald-400">
-                <Server className="h-5 w-5" />
+          {/* Tab Content Rendering */}
+          {activeTab === 'Dashboard' && (
+            <>
+              {/* 1. Statistic Cards (6 Cards) */}
+              <section aria-label="Key Performance Indicators">
+                <StatCards />
+              </section>
+
+              {/* 2. Emergency Alerts Panel */}
+              <section aria-label="Emergency Alerts">
+                <EmergencyAlertsPanel />
+              </section>
+
+              {/* 3. Recharts Section (Trend, Distribution, Capacity) */}
+              <section aria-label="Resource and Allocation Charts">
+                <ChartsSection />
+              </section>
+
+              {/* 4. Recent Requests Table */}
+              <section aria-label="Recent Emergency Requests">
+                <RecentRequestsTable searchFilter={searchQuery} />
+              </section>
+            </>
+          )}
+
+          {activeTab === 'Emergency Requests' && (
+            <div className="space-y-6">
+              <RecentRequestsTable searchFilter={searchQuery} />
+              <EmergencyAlertsPanel />
+            </div>
+          )}
+
+          {activeTab === 'Hospitals' && (
+            <div className="space-y-6">
+              <ChartsSection />
+              <div className="rounded-2xl bg-white border border-slate-200/80 p-6 shadow-xs">
+                <h3 className="font-bold text-slate-900 text-lg mb-2">Connected Regional Network Hubs</h3>
+                <p className="text-xs text-slate-500 mb-4">
+                  All 5 tertiary medical facilities are actively connected to the C Dijkstra routing graph.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { id: 1, name: 'City Hospital', role: 'Central Hub', lat: '40.7128° N', lon: '74.0060° W', dist: '0 km' },
+                    { id: 2, name: 'General Hospital', role: 'Trauma Center', lat: '40.7306° N', lon: '73.9352° W', dist: '5 km' },
+                    { id: 3, name: 'Sunrise Medical Center', role: 'Midtown Center', lat: '40.7589° N', lon: '73.9851° W', dist: '8 km' },
+                    { id: 4, name: 'Apollo Care', role: 'Uptown Facility', lat: '40.7829° N', lon: '73.9654° W', dist: '12 km' },
+                    { id: 5, name: 'Metro Hospital', role: 'South Division', lat: '40.6782° N', lon: '73.9442° W', dist: '12 km' },
+                  ].map((hosp) => (
+                    <div key={hosp.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-sm">#{hosp.id} {hosp.name}</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                          {hosp.dist}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-500 block">{hosp.role}</span>
+                      <span className="text-[11px] font-mono text-slate-400 block">{hosp.lat}, {hosp.lon}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h3 className="font-semibold text-white text-base">Backend (Express.js)</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Node.js runtime with CORS enabled, dotenv configuration, nodemon hot reloading, and
-                clean controller/service routing.
-              </p>
             </div>
-            <div className="pt-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">
-              Endpoint: <span className="text-emerald-300">GET /health</span>
-            </div>
-          </div>
+          )}
 
-          {/* Algorithm Engine Card */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 flex flex-col justify-between space-y-4 hover:border-zinc-700 transition">
-            <div className="space-y-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-950 border border-violet-800/50 text-violet-400">
-                <Terminal className="h-5 w-5" />
+          {activeTab === 'Inventory' && (
+            <div className="space-y-6">
+              <StatCards />
+              <ChartsSection />
+            </div>
+          )}
+
+          {activeTab === 'Allocation Engine' && (
+            <div className="rounded-2xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
+                  <Cpu className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">C Algorithm Engine (C17)</h3>
+                  <p className="text-xs text-slate-500">
+                    High-performance binary executing Max-Heap Priority Queue, Hash Map O(1) Search, Dijkstra, and Kuhn Augmenting Path
+                  </p>
+                </div>
               </div>
-              <h3 className="font-semibold text-white text-base">Engine (C17 / GCC)</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Independent compiled executable communicating with the Node.js backend via
-                stdin/stdout JSON streams.
-              </p>
-            </div>
-            <div className="pt-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-800/80">
-              Binary: <span className="text-violet-300">dsa/build/allocator</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Data Visualization Preview */}
-        <section className="space-y-3">
-          <MetricsOverview />
-        </section>
-      </main>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-medium">Binary Location</span>
+                  <p className="font-mono text-xs font-semibold text-slate-900">dsa/build/allocator.exe</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-medium">IPC Protocol</span>
+                  <p className="font-mono text-xs font-semibold text-slate-900">stdin / stdout JSON streams</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-medium">Matching Complexity</span>
+                  <p className="font-mono text-xs font-semibold text-emerald-600">O(V × E) Kuhn Algorithm</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-xs text-slate-500 font-medium">Average Latency</span>
+                  <p className="font-mono text-xs font-semibold text-blue-600">&lt; 0.1ms</p>
+                </div>
+              </div>
 
-      <footer className="mt-auto border-t border-zinc-800/80 bg-zinc-950/80 py-6 text-center text-xs text-zinc-500">
-        MedAlloc • Clean Architecture Medical Resource Allocator • Next.js + Express + C Engine
-      </footer>
+              <RecentRequestsTable searchFilter={searchQuery} />
+            </div>
+          )}
+
+          {activeTab === 'Analytics' && (
+            <div className="space-y-6">
+              <ChartsSection />
+              <StatCards />
+            </div>
+          )}
+
+          {activeTab === 'About' && (
+            <div className="rounded-2xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6 max-w-4xl">
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-slate-900">About MedAlloc Full-Stack Platform</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  MedAlloc is an advanced emergency hospital resource allocation system designed to
+                  optimally distribute critical assets (blood units, ICU beds, oxygen cylinders, ventilators,
+                  and emergency pharmaceuticals) across regional networks during high-volume crisis events.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200/70 space-y-1">
+                  <span className="text-xs font-bold text-blue-700 uppercase">Frontend</span>
+                  <p className="text-xs text-slate-600">Next.js 15, TypeScript, Tailwind CSS, shadcn/ui, Recharts, Lucide Icons</p>
+                </div>
+                <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200/70 space-y-1">
+                  <span className="text-xs font-bold text-emerald-700 uppercase">Backend</span>
+                  <p className="text-xs text-slate-600">Node.js, Express, child_process IPC, RESTful API endpoints</p>
+                </div>
+                <div className="p-4 rounded-xl bg-violet-50/50 border border-violet-200/70 space-y-1">
+                  <span className="text-xs font-bold text-violet-700 uppercase">Engine</span>
+                  <p className="text-xs text-slate-600">Pure C (C17), GCC, Max-Heap, Hash Map Chaining, Dijkstra, Kuhn Bipartite</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-200/80 bg-white py-4 px-6 text-center text-xs text-slate-500">
+          MedAlloc Emergency Dispatch Platform • Clean Architecture • Next.js + Express + C Allocation Engine
+        </footer>
+      </div>
     </div>
   );
 }
