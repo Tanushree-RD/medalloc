@@ -8,24 +8,54 @@ import {
   AlertCircle,
   Building2,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
-import { RECENT_REQUESTS_DATA, RecentRequestItem } from '@/lib/mockData';
+import { RECENT_REQUESTS_DATA } from '@/lib/mockData';
+import { EmergencyRequest, PriorityLevel, AllocationStatus } from '@/lib/types';
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
 import { cn } from '@/lib/utils';
 
 interface RecentRequestsTableProps {
+  requests?: EmergencyRequest[];
+  isLoading?: boolean;
   searchFilter?: string;
+  onRefresh?: () => void;
 }
 
-export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTableProps) {
+export function RecentRequestsTable({
+  requests,
+  isLoading,
+  searchFilter = '',
+  onRefresh,
+}: RecentRequestsTableProps) {
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
 
-  const effectiveSearch = searchFilter;
+  if (isLoading) {
+    return <TableSkeleton rows={5} />;
+  }
 
-  const filteredRequests = RECENT_REQUESTS_DATA.filter((req) => {
+  // Unified items list
+  const rawList = requests && requests.length > 0
+    ? requests.map((r) => ({
+        id: r.id,
+        patient: r.patientName,
+        age: 45,
+        gender: 'Adult',
+        resource: r.resourceType,
+        quantity: r.quantity,
+        priority: r.priority,
+        assignedHospital: r.assignedHospital,
+        distanceKm: r.distanceKm,
+        status: r.allocationStatus,
+        timeAgo: r.estimatedResponseTime || '3 mins ago',
+      }))
+    : RECENT_REQUESTS_DATA;
+
+  const filteredRequests = rawList.filter((req) => {
     const matchesPriority =
       priorityFilter === 'All' || req.priority === priorityFilter;
 
-    const query = effectiveSearch.toLowerCase().trim();
+    const query = searchFilter.toLowerCase().trim();
     const matchesSearch =
       query === '' ||
       req.patient.toLowerCase().includes(query) ||
@@ -36,7 +66,7 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
     return matchesPriority && matchesSearch;
   });
 
-  const getPriorityBadge = (priority: RecentRequestItem['priority']) => {
+  const getPriorityBadge = (priority: PriorityLevel | string) => {
     switch (priority) {
       case 'Critical':
         return (
@@ -70,7 +100,7 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
     }
   };
 
-  const getStatusBadge = (status: RecentRequestItem['status']) => {
+  const getStatusBadge = (status: AllocationStatus | string) => {
     switch (status) {
       case 'Allocated':
         return (
@@ -91,6 +121,13 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80">
             <Clock className="h-3.5 w-3.5 text-amber-600" />
             Queued
+          </span>
+        );
+      case 'Failed':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200/80">
+            <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+            Unallocated
           </span>
         );
       case 'Pending':
@@ -120,22 +157,34 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
           </p>
         </div>
 
-        {/* Priority Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200/80 self-start sm:self-auto">
-          {['All', 'Critical', 'High', 'Medium', 'Low'].map((level) => (
+        {/* Priority Tabs & Refresh */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200/80">
+            {['All', 'Critical', 'High', 'Medium', 'Low'].map((level) => (
+              <button
+                key={level}
+                onClick={() => setPriorityFilter(level)}
+                className={cn(
+                  'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
+                  priorityFilter === level
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                )}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+
+          {onRefresh && (
             <button
-              key={level}
-              onClick={() => setPriorityFilter(level)}
-              className={cn(
-                'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
-                priorityFilter === level
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              )}
+              onClick={onRefresh}
+              title="Refresh Requests"
+              className="p-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition"
             >
-              {level}
+              <RefreshCw className="h-4 w-4" />
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -171,8 +220,8 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
                         <span className="font-semibold text-slate-900 block leading-tight">
                           {req.patient}
                         </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {req.gender}, {req.age} yrs • {req.timeAgo}
+                        <span className="text-[11px] text-slate-400 font-medium font-mono">
+                          {req.id} • {req.timeAgo}
                         </span>
                       </div>
                     </div>
@@ -216,7 +265,7 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
             ) : (
               <tr>
                 <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
-                  No emergency requests match the selected priority filter.
+                  No emergency requests match the selected filters.
                 </td>
               </tr>
             )}
@@ -228,12 +277,12 @@ export function RecentRequestsTable({ searchFilter = '' }: RecentRequestsTablePr
       <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
         <span>
           Showing <strong className="text-slate-800">{filteredRequests.length}</strong> of{' '}
-          {RECENT_REQUESTS_DATA.length} recorded emergency requests
+          {rawList.length} recorded emergency requests
         </span>
-        <button className="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1 hover:underline">
-          View Complete Dispatch Log
+        <span className="text-blue-600 font-semibold inline-flex items-center gap-1">
+          Synced with Express Backend Live
           <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+        </span>
       </div>
     </div>
   );

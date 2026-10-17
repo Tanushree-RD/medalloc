@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarTab } from '@/components/dashboard/Sidebar';
 import { TopNavbar } from '@/components/dashboard/TopNavbar';
 import { StatCards } from '@/components/dashboard/StatCards';
 import { ChartsSection } from '@/components/dashboard/ChartsSection';
 import { RecentRequestsTable } from '@/components/dashboard/RecentRequestsTable';
 import { EmergencyAlertsPanel } from '@/components/dashboard/EmergencyAlertsPanel';
+import { EmergencyRequestView } from '@/components/views/EmergencyRequestView';
+import { HospitalsView } from '@/components/views/HospitalsView';
+import { InventoryView } from '@/components/views/InventoryView';
+import { AnalyticsView } from '@/components/views/AnalyticsView';
+import { ErrorCard } from '@/components/ui/ErrorCard';
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast';
+import { useDashboard } from '@/hooks/useDashboard';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useRequests } from '@/hooks/useRequests';
 import { HeartPulse, RefreshCw, Cpu } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -14,9 +23,57 @@ export default function DashboardPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Live Backend Hooks
+  const { stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboard();
+  const { analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useAnalytics();
+  const { requests, isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useRequests();
+
+  // Helper to add toast notifications
+  const addToast = (type: 'error' | 'success' | 'info', message: string, title?: string) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, type, message, title }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 6000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Show toast notification on error
+  useEffect(() => {
+    if (statsError) {
+      addToast('error', statsError, 'Dashboard Stats Error');
+    }
+  }, [statsError]);
+
+  useEffect(() => {
+    if (analyticsError) {
+      addToast('error', analyticsError, 'Analytics Stream Error');
+    }
+  }, [analyticsError]);
+
+  useEffect(() => {
+    if (requestsError) {
+      addToast('error', requestsError, 'Emergency Requests Error');
+    }
+  }, [requestsError]);
+
+  const handleGlobalRefresh = () => {
+    refetchStats();
+    refetchAnalytics();
+    refetchRequests();
+    addToast('info', 'Synchronizing regional hospital telemetries with Express API...', 'Network Sync');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans antialiased selection:bg-blue-500/20">
+      {/* Toast Notification Container */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       {/* Collapsible Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -49,19 +106,19 @@ export default function DashboardPage() {
                 {activeTab === 'Dashboard' ? 'Emergency Dispatch Command Center' : activeTab}
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Real-time multi-hospital triage powered by Max-Heap, Dijkstra Roadway Routing & Kuhn Bipartite Matching
+                Real-time multi-hospital triage connected to Express.js API & C17 Algorithmic Engine
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 self-start sm:self-auto">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs text-xs font-medium text-slate-700">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>C Allocator IPC: <strong className="text-slate-900">Live</strong></span>
+                <span>Express Backend: <strong className="text-slate-900">Connected</strong></span>
               </span>
 
               <button
-                onClick={() => setSearchQuery('')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs text-xs font-semibold transition-all hover:shadow-blue-500/20"
+                onClick={handleGlobalRefresh}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs text-xs font-semibold transition-all hover:shadow-blue-500/20"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Sync Network</span>
@@ -69,12 +126,21 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Tab Content Rendering */}
+          {/* Connection Error Banner if backend is offline */}
+          {(statsError || analyticsError || requestsError) && (
+            <ErrorCard
+              title="Backend Telemetry Alert"
+              message={statsError || analyticsError || requestsError || 'Unable to communicate with the Express backend service.'}
+              onRetry={handleGlobalRefresh}
+            />
+          )}
+
+          {/* Tab 1: Main Dashboard */}
           {activeTab === 'Dashboard' && (
             <>
-              {/* 1. Statistic Cards (6 Cards) */}
+              {/* 1. Statistic Cards (6 Cards powered by backend API) */}
               <section aria-label="Key Performance Indicators">
-                <StatCards />
+                <StatCards cards={stats?.statCards} isLoading={statsLoading} />
               </section>
 
               {/* 2. Emergency Alerts Panel */}
@@ -84,106 +150,115 @@ export default function DashboardPage() {
 
               {/* 3. Recharts Section (Trend, Distribution, Capacity) */}
               <section aria-label="Resource and Allocation Charts">
-                <ChartsSection />
+                <ChartsSection data={analytics} isLoading={analyticsLoading} />
               </section>
 
-              {/* 4. Recent Requests Table */}
+              {/* 4. Recent Requests Table (Live Requests from Backend) */}
               <section aria-label="Recent Emergency Requests">
-                <RecentRequestsTable searchFilter={searchQuery} />
+                <RecentRequestsTable
+                  requests={requests}
+                  isLoading={requestsLoading}
+                  searchFilter={searchQuery}
+                  onRefresh={refetchRequests}
+                />
               </section>
             </>
           )}
 
+          {/* Tab 2: Emergency Requests View */}
           {activeTab === 'Emergency Requests' && (
-            <div className="space-y-6">
-              <RecentRequestsTable searchFilter={searchQuery} />
-              <EmergencyAlertsPanel />
+            <div className="space-y-8">
+              <EmergencyRequestView
+                onSuccessAllocation={(res) => {
+                  refetchRequests();
+                  refetchStats();
+                  addToast(
+                    'success',
+                    `Patient allocated to ${res.assignedHospital} (${res.distance} km away). Estimated response: ${res.estimatedResponseTime}`,
+                    'Allocation Confirmed'
+                  );
+                }}
+                onErrorToast={(msg) => addToast('error', msg, 'Allocation Error')}
+              />
+
+              <div className="pt-4">
+                <RecentRequestsTable
+                  requests={requests}
+                  isLoading={requestsLoading}
+                  searchFilter={searchQuery}
+                  onRefresh={refetchRequests}
+                />
+              </div>
             </div>
           )}
 
+          {/* Tab 3: Hospitals View */}
           {activeTab === 'Hospitals' && (
-            <div className="space-y-6">
-              <ChartsSection />
-              <div className="rounded-2xl bg-white border border-slate-200/80 p-6 shadow-xs">
-                <h3 className="font-bold text-slate-900 text-lg mb-2">Connected Regional Network Hubs</h3>
-                <p className="text-xs text-slate-500 mb-4">
-                  All 5 tertiary medical facilities are actively connected to the C Dijkstra routing graph.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { id: 1, name: 'City Hospital', role: 'Central Hub', lat: '40.7128° N', lon: '74.0060° W', dist: '0 km' },
-                    { id: 2, name: 'General Hospital', role: 'Trauma Center', lat: '40.7306° N', lon: '73.9352° W', dist: '5 km' },
-                    { id: 3, name: 'Sunrise Medical Center', role: 'Midtown Center', lat: '40.7589° N', lon: '73.9851° W', dist: '8 km' },
-                    { id: 4, name: 'Apollo Care', role: 'Uptown Facility', lat: '40.7829° N', lon: '73.9654° W', dist: '12 km' },
-                    { id: 5, name: 'Metro Hospital', role: 'South Division', lat: '40.6782° N', lon: '73.9442° W', dist: '12 km' },
-                  ].map((hosp) => (
-                    <div key={hosp.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 text-sm">#{hosp.id} {hosp.name}</span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                          {hosp.dist}
-                        </span>
-                      </div>
-                      <span className="text-xs text-slate-500 block">{hosp.role}</span>
-                      <span className="text-[11px] font-mono text-slate-400 block">{hosp.lat}, {hosp.lon}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <HospitalsView />
           )}
 
+          {/* Tab 4: Live Inventory View */}
           {activeTab === 'Inventory' && (
-            <div className="space-y-6">
-              <StatCards />
-              <ChartsSection />
-            </div>
+            <InventoryView />
           )}
 
+          {/* Tab 5: Allocation Engine View */}
           {activeTab === 'Allocation Engine' && (
-            <div className="rounded-2xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
-                  <Cpu className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">C Algorithm Engine (C17)</h3>
-                  <p className="text-xs text-slate-500">
-                    High-performance binary executing Max-Heap Priority Queue, Hash Map O(1) Search, Dijkstra, and Kuhn Augmenting Path
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">Binary Location</span>
-                  <p className="font-mono text-xs font-semibold text-slate-900">dsa/build/allocator.exe</p>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">IPC Protocol</span>
-                  <p className="font-mono text-xs font-semibold text-slate-900">stdin / stdout JSON streams</p>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">Matching Complexity</span>
-                  <p className="font-mono text-xs font-semibold text-emerald-600">O(V × E) Kuhn Algorithm</p>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">Average Latency</span>
-                  <p className="font-mono text-xs font-semibold text-blue-600">&lt; 0.1ms</p>
-                </div>
-              </div>
-
-              <RecentRequestsTable searchFilter={searchQuery} />
-            </div>
-          )}
-
-          {activeTab === 'Analytics' && (
             <div className="space-y-6">
-              <ChartsSection />
-              <StatCards />
+              <div className="rounded-2xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
+                    <Cpu className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">C Algorithm Engine (C17)</h3>
+                    <p className="text-xs text-slate-500">
+                      Independent compiled binary executing Max-Heap Priority Queue, Hash Map O(1) Search, Dijkstra, and Kuhn Augmenting Path
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <span className="text-xs text-slate-500 font-medium">Binary Location</span>
+                    <p className="font-mono text-xs font-semibold text-slate-900">dsa/build/allocator.exe</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <span className="text-xs text-slate-500 font-medium">IPC Protocol</span>
+                    <p className="font-mono text-xs font-semibold text-slate-900">child_process.spawn() JSON</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <span className="text-xs text-slate-500 font-medium">Matching Complexity</span>
+                    <p className="font-mono text-xs font-semibold text-emerald-600">O(V × E) Kuhn Algorithm</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <span className="text-xs text-slate-500 font-medium">Average Latency</span>
+                    <p className="font-mono text-xs font-semibold text-blue-600">&lt; 0.1ms execution</p>
+                  </div>
+                </div>
+              </div>
+
+              <EmergencyRequestView
+                onSuccessAllocation={(res) => {
+                  refetchRequests();
+                  refetchStats();
+                  addToast(
+                    'success',
+                    `C Engine dispatched request to ${res.assignedHospital} (${res.distance} km).`,
+                    'Engine Matched'
+                  );
+                }}
+                onErrorToast={(msg) => addToast('error', msg, 'Engine Error')}
+              />
             </div>
           )}
 
+          {/* Tab 6: Analytics View */}
+          {activeTab === 'Analytics' && (
+            <AnalyticsView />
+          )}
+
+          {/* Tab 7: About View */}
           {activeTab === 'About' && (
             <div className="rounded-2xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6 max-w-4xl">
               <div className="space-y-2">
@@ -197,16 +272,16 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200/70 space-y-1">
-                  <span className="text-xs font-bold text-blue-700 uppercase">Frontend</span>
-                  <p className="text-xs text-slate-600">Next.js 15, TypeScript, Tailwind CSS, shadcn/ui, Recharts, Lucide Icons</p>
+                  <span className="text-xs font-bold text-blue-700 uppercase">Frontend Layer</span>
+                  <p className="text-xs text-slate-600">Next.js 15, TypeScript, Tailwind CSS, Recharts, Custom Skeletons & Hooks</p>
                 </div>
                 <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200/70 space-y-1">
-                  <span className="text-xs font-bold text-emerald-700 uppercase">Backend</span>
-                  <p className="text-xs text-slate-600">Node.js, Express, child_process IPC, RESTful API endpoints</p>
+                  <span className="text-xs font-bold text-emerald-700 uppercase">Express API</span>
+                  <p className="text-xs text-slate-600">RESTful Controllers, Telemetry Store, Child Process IPC, Real-time Error Handling</p>
                 </div>
                 <div className="p-4 rounded-xl bg-violet-50/50 border border-violet-200/70 space-y-1">
-                  <span className="text-xs font-bold text-violet-700 uppercase">Engine</span>
-                  <p className="text-xs text-slate-600">Pure C (C17), GCC, Max-Heap, Hash Map Chaining, Dijkstra, Kuhn Bipartite</p>
+                  <span className="text-xs font-bold text-violet-700 uppercase">C Algorithm Engine</span>
+                  <p className="text-xs text-slate-600">C17 GCC, Max-Heap Priority Queue, Hash Map O(1), Dijkstra, Kuhn Bipartite</p>
                 </div>
               </div>
             </div>

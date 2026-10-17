@@ -11,11 +11,24 @@ import {
   ArrowUpRight,
   TrendingUp,
 } from 'lucide-react';
-import { STAT_CARDS_DATA, StatMetric } from '@/lib/mockData';
+import { STAT_CARDS_DATA } from '@/lib/mockData';
+import { StatCardItem } from '@/lib/types';
+import { StatCardsSkeleton } from '@/components/ui/LoadingSkeleton';
 import { cn } from '@/lib/utils';
 
-export function StatCards() {
-  const getCardIcon = (category: StatMetric['category']) => {
+interface StatCardsProps {
+  cards?: StatCardItem[];
+  isLoading?: boolean;
+}
+
+export function StatCards({ cards, isLoading }: StatCardsProps) {
+  if (isLoading) {
+    return <StatCardsSkeleton />;
+  }
+
+  const items = cards && cards.length > 0 ? cards : STAT_CARDS_DATA;
+
+  const getCardIcon = (category: StatCardItem['category']) => {
     switch (category) {
       case 'requests':
         return AlertTriangle;
@@ -34,7 +47,7 @@ export function StatCards() {
     }
   };
 
-  const getStyleTokens = (category: StatMetric['category']) => {
+  const getStyleTokens = (category: StatCardItem['category']) => {
     switch (category) {
       case 'critical':
         return {
@@ -78,7 +91,7 @@ export function StatCards() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5">
-      {STAT_CARDS_DATA.map((card) => {
+      {items.map((card) => {
         const Icon = getCardIcon(card.category);
         const styles = getStyleTokens(card.category);
 
@@ -117,7 +130,7 @@ export function StatCards() {
               <span className="text-xs font-medium text-slate-500 line-clamp-1">
                 {card.title}
               </span>
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-mono">
                 {card.value}
               </div>
             </div>

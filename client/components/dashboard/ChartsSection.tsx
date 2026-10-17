@@ -20,29 +20,36 @@ import {
   DAILY_ALLOCATION_TREND_DATA,
   HOSPITAL_CAPACITY_DATA,
 } from '@/lib/mockData';
+import { AnalyticsData } from '@/lib/types';
+import { ChartsSkeleton } from '@/components/ui/LoadingSkeleton';
 import { PieChart as PieIcon, TrendingUp, Building2 } from 'lucide-react';
 
-export function ChartsSection() {
+interface ChartsSectionProps {
+  data?: AnalyticsData | null;
+  isLoading?: boolean;
+}
+
+export function ChartsSection({ data, isLoading }: ChartsSectionProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-80 rounded-2xl bg-white border border-slate-200/80 p-6 shadow-xs animate-pulse flex items-center justify-center text-slate-400 text-xs"
-          >
-            Loading analytics visualization...
-          </div>
-        ))}
-      </div>
-    );
+  if (!mounted || isLoading) {
+    return <ChartsSkeleton />;
   }
+
+  const trendData = data?.dailyAllocationTrend || DAILY_ALLOCATION_TREND_DATA;
+  const distributionData = data?.resourceDistribution || RESOURCE_DISTRIBUTION_DATA;
+  const capacityData = data?.hospitalCapacity || HOSPITAL_CAPACITY_DATA;
+  const kpis = data?.kpis || {
+    peakHour: '22:00 (189)',
+    matchingAccuracy: '98.4%',
+    avgResponseTime: '4.2 mins',
+  };
+
+  const totalDistributionUnits = distributionData.reduce((acc, curr) => acc + curr.value, 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -59,7 +66,7 @@ export function ChartsSection() {
               Daily Allocation Trend
             </h3>
             <p className="text-xs text-slate-500">
-              Emergency requests received vs successful hospital dispatches (Today)
+              Emergency requests received vs successful hospital dispatches (Live)
             </p>
           </div>
 
@@ -79,7 +86,7 @@ export function ChartsSection() {
         <div className="h-64 sm:h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={DAILY_ALLOCATION_TREND_DATA}
+              data={trendData}
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
               <defs>
@@ -142,15 +149,15 @@ export function ChartsSection() {
         <div className="pt-4 mt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center text-xs">
           <div>
             <span className="text-slate-400 text-[11px] block">Peak Triage Hour</span>
-            <span className="font-bold text-slate-800">22:00 (189)</span>
+            <span className="font-bold text-slate-800">{kpis.peakHour}</span>
           </div>
           <div>
             <span className="text-slate-400 text-[11px] block">Matching Accuracy</span>
-            <span className="font-bold text-emerald-600">98.4%</span>
+            <span className="font-bold text-emerald-600">{kpis.matchingAccuracy}</span>
           </div>
           <div>
             <span className="text-slate-400 text-[11px] block">Avg Response Time</span>
-            <span className="font-bold text-blue-600">4.2 mins</span>
+            <span className="font-bold text-blue-600">{kpis.avgResponseTime}</span>
           </div>
         </div>
       </div>
@@ -176,7 +183,7 @@ export function ChartsSection() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={RESOURCE_DISTRIBUTION_DATA}
+                data={distributionData}
                 cx="50%"
                 cy="50%"
                 innerRadius={65}
@@ -184,7 +191,7 @@ export function ChartsSection() {
                 paddingAngle={4}
                 dataKey="value"
               >
-                {RESOURCE_DISTRIBUTION_DATA.map((entry, index) => (
+                {distributionData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
                 ))}
               </Pie>
@@ -203,7 +210,9 @@ export function ChartsSection() {
 
           {/* Centered Total */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-2xl font-extrabold text-slate-900">974</span>
+            <span className="text-2xl font-extrabold text-slate-900 font-mono">
+              {totalDistributionUnits}
+            </span>
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
               Total Units
             </span>
@@ -212,7 +221,7 @@ export function ChartsSection() {
 
         {/* Legend Grid */}
         <div className="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {RESOURCE_DISTRIBUTION_DATA.map((item) => (
+          {distributionData.map((item) => (
             <div key={item.name} className="flex items-center gap-2 text-xs">
               <span
                 className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -220,7 +229,7 @@ export function ChartsSection() {
               />
               <div className="truncate">
                 <span className="text-slate-600 truncate block text-[11px]">{item.name}</span>
-                <span className="font-bold text-slate-900 text-xs">{item.value}</span>
+                <span className="font-bold text-slate-900 text-xs font-mono">{item.value}</span>
               </div>
             </div>
           ))}
@@ -259,7 +268,7 @@ export function ChartsSection() {
         <div className="h-64 sm:h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={HOSPITAL_CAPACITY_DATA}
+              data={capacityData}
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
