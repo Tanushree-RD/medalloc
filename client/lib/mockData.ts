@@ -58,6 +58,152 @@ export interface EmergencyAlertItem {
   actionLabel?: string;
 }
 
+import { Hospital } from './types';
+
+export const HOSPITALS_DATA: Hospital[] = [
+  {
+    id: 1,
+    name: 'City Hospital',
+    type: 'Trauma & Academic Medical Center',
+    location: 'Downtown Central',
+    latitude: 40.7128,
+    longitude: -74.006,
+    distanceKm: 0,
+    bloodAvailability: {
+      'A+': 12,
+      'O+': 25,
+      'B+': 14,
+      'AB+': 8,
+      'O-': 6,
+    },
+    icuBeds: {
+      total: 30,
+      occupied: 22,
+      available: 8,
+    },
+    medicines: [
+      { name: 'Normal Saline (1000ml)', stock: 480, unit: 'bags' },
+      { name: 'Paracetamol (500mg IV)', stock: 350, unit: 'vials' },
+      { name: 'Epinephrine (1mg)', stock: 120, unit: 'amps' },
+    ],
+    status: 'Operational',
+    statusColor: 'emerald',
+    contact: '+1 (555) 019-2831',
+  },
+  {
+    id: 2,
+    name: 'General Hospital',
+    type: 'Regional Emergency Center',
+    location: 'North-East District',
+    latitude: 40.7306,
+    longitude: -73.9352,
+    distanceKm: 5,
+    bloodAvailability: {
+      'A+': 18,
+      'B+': 12,
+      'O-': 5,
+      'AB-': 4,
+    },
+    icuBeds: {
+      total: 25,
+      occupied: 11,
+      available: 14,
+    },
+    medicines: [
+      { name: 'Medical Oxygen 50L', stock: 45, unit: 'cylinders' },
+      { name: 'Ceftriaxone (1g)', stock: 210, unit: 'vials' },
+      { name: 'Morphine Sulfate (10mg)', stock: 85, unit: 'vials' },
+    ],
+    status: 'Operational',
+    statusColor: 'emerald',
+    contact: '+1 (555) 019-2832',
+  },
+  {
+    id: 3,
+    name: 'Sunrise Medical Center',
+    type: 'Cardiac & Critical Care Institute',
+    location: 'Midtown Plaza',
+    latitude: 40.7589,
+    longitude: -73.9851,
+    distanceKm: 8,
+    bloodAvailability: {
+      'O+': 22,
+      'AB+': 18,
+      'A+': 10,
+      'B-': 7,
+    },
+    icuBeds: {
+      total: 35,
+      occupied: 13,
+      available: 22,
+    },
+    medicines: [
+      { name: 'Heparin (5000 IU)', stock: 160, unit: 'vials' },
+      { name: 'Atropine (0.5mg)', stock: 140, unit: 'amps' },
+      { name: 'Amiodarone (150mg)', stock: 95, unit: 'vials' },
+    ],
+    status: 'Operational',
+    statusColor: 'emerald',
+    contact: '+1 (555) 019-2833',
+  },
+  {
+    id: 4,
+    name: 'Apollo Care',
+    type: 'Specialized Trauma & Surgery Center',
+    location: 'Uptown Medical Corridor',
+    latitude: 40.7829,
+    longitude: -73.9654,
+    distanceKm: 12,
+    bloodAvailability: {
+      'O+': 15,
+      'AB+': 14,
+      'B+': 11,
+      'A-': 9,
+    },
+    icuBeds: {
+      total: 28,
+      occupied: 12,
+      available: 16,
+    },
+    medicines: [
+      { name: 'Propofol (20ml)', stock: 110, unit: 'vials' },
+      { name: 'Paracetamol (500mg IV)', stock: 100, unit: 'vials' },
+      { name: 'Fentanyl (50mcg)', stock: 75, unit: 'amps' },
+    ],
+    status: 'Operational',
+    statusColor: 'emerald',
+    contact: '+1 (555) 019-2834',
+  },
+  {
+    id: 5,
+    name: 'Metro Hospital',
+    type: 'Metropolitan Community & Critical Care',
+    location: 'South District',
+    latitude: 40.6782,
+    longitude: -73.9442,
+    distanceKm: 12,
+    bloodAvailability: {
+      'O+': 30,
+      'O-': 15,
+      'A+': 14,
+      'AB-': 5,
+    },
+    icuBeds: {
+      total: 24,
+      occupied: 12,
+      available: 12,
+    },
+    medicines: [
+      { name: 'Lidocaine 2%', stock: 180, unit: 'vials' },
+      { name: 'Dopamine (200mg)', stock: 65, unit: 'vials' },
+      { name: 'Medical Oxygen 50L', stock: 30, unit: 'cylinders' },
+    ],
+    status: 'Operational',
+    statusColor: 'emerald',
+    contact: '+1 (555) 019-2835',
+  },
+];
+
 export const STAT_CARDS_DATA: StatMetric[] = [
   {
     id: 'active-requests',

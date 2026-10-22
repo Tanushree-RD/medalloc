@@ -1,232 +1,130 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Package,
-  RefreshCw,
-  Clock,
-  Droplet,
-  BedDouble,
-  Pill,
-  Wind,
-  AlertTriangle,
-  CheckCircle2,
-} from 'lucide-react';
-import { useInventory } from '@/hooks/useInventory';
-import { ErrorCard } from '@/components/ui/ErrorCard';
-import { cn } from '@/lib/utils';
+import React, { useState } from 'react';
+import { Search, Building2 } from 'lucide-react';
+import { HOSPITALS_DATA } from '@/lib/mockData';
 
 export function InventoryView() {
-  const { inventory, metadata, isLoading, error, lastRefreshed, refetch } = useInventory(30000);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState<number>(30);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // 30-second live countdown timer
-  useEffect(() => {
-    setSecondsUntilRefresh(30);
-    const interval = setInterval(() => {
-      setSecondsUntilRefresh((prev) => (prev <= 1 ? 30 : prev - 1));
-    }, 1000);
+  // Transform hospital data into inventory rows
+  const inventoryRows = HOSPITALS_DATA.map((hosp) => {
+    const totalBlood = Object.values(hosp.bloodAvailability || {}).reduce((a, b) => a + b, 0);
+    const topMedicines = hosp.medicines?.map((m) => `${m.name} (${m.stock})`).join(', ') || 'Standard Emergency Pack';
 
-    return () => clearInterval(interval);
-  }, [lastRefreshed]);
-
-  const categories = ['All', 'Blood Products', 'Critical Care Beds', 'Respiratory Care', 'Pharmaceuticals', 'Emergency Equipment'];
-
-  const filteredItems = inventory.filter((item) => {
-    if (selectedCategory === 'All') return true;
-    return item.category === selectedCategory;
+    return {
+      id: hosp.id,
+      hospital: hosp.name,
+      location: hosp.location,
+      bloodUnits: totalBlood,
+      icuBeds: `${hosp.icuBeds.available} Available / ${hosp.icuBeds.total} Total`,
+      medicines: topMedicines,
+      lastUpdated: '10 mins ago',
+    };
   });
 
-  const getCategoryIcon = (cat: string) => {
-    switch (cat) {
-      case 'Blood Products':
-        return Droplet;
-      case 'Critical Care Beds':
-        return BedDouble;
-      case 'Respiratory Care':
-      case 'Emergency Equipment':
-        return Wind;
-      case 'Pharmaceuticals':
-      default:
-        return Pill;
-    }
-  };
+  const filteredRows = inventoryRows.filter((row) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      row.hospital.toLowerCase().includes(query) ||
+      row.location.toLowerCase().includes(query) ||
+      row.medicines.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Banner */}
-      <div className="rounded-2xl bg-white border border-slate-200/80 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-600">
-            <Package className="h-4 w-4" />
-            <span>Regional Stockpile Telemetry</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Live Regional Inventory
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Synchronized with Hash Map Separate Chaining data store • Auto-refreshes every 30 seconds
+      {/* View Header & Search Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Hospital Inventory
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Real-time stockpile levels for emergency medical supplies across the network.
           </p>
         </div>
 
-        {/* Live Auto-Refresh Pill & Manual Refresh */}
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
-            <Clock className="h-3.5 w-3.5 text-blue-600 animate-spin" />
-            <span>
-              Auto-refresh in: <strong className="text-blue-700 font-mono">{secondsUntilRefresh}s</strong>
-            </span>
-          </div>
-
-          <button
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs hover:shadow-xs transition"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Sync Now</span>
-          </button>
+        {/* Search Input */}
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filter hospitals or medicines..."
+            className="w-full h-9 pl-9 pr-3 text-xs bg-white rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition"
+          />
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <ErrorCard
-          title="Inventory Sync Error"
-          message={error}
-          onRetry={refetch}
-        />
-      )}
-
-      {/* Quick Summary Cards */}
-      {metadata && !isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-xs">
-            <span className="text-xs font-medium text-slate-500 block">Total Cataloged Assets</span>
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900">{metadata.totalUnits.toLocaleString()} units</span>
-            <span className="text-[11px] text-slate-400 block mt-1">Across 5 regional hubs</span>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-xs">
-            <span className="text-xs font-medium text-slate-500 block">Low Stock Alerts</span>
-            <span className={`text-2xl sm:text-3xl font-extrabold ${metadata.lowStockCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-              {metadata.lowStockCount} items
-            </span>
-            <span className="text-[11px] text-slate-400 block mt-1">Near or below safe buffer threshold</span>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-xs">
-            <span className="text-xs font-medium text-slate-500 block">Last Verified Sync</span>
-            <span className="text-sm sm:text-base font-bold text-slate-800 font-mono">
-              {lastRefreshed.toLocaleTimeString()}
-            </span>
-            <span className="text-[11px] text-emerald-600 font-semibold block mt-1">✓ Live telemetry stream active</span>
-          </div>
-        </div>
-      )}
-
-      {/* Category Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={cn(
-              'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all',
-              selectedCategory === cat
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* Loading Skeleton */}
-      {isLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-white border border-slate-200/80 p-4 shadow-xs animate-pulse" />
-          ))}
-        </div>
-      )}
-
-      {/* Live Inventory Table */}
-      {!isLoading && !error && (
-        <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4">Resource Item</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Hospital Facility</th>
-                  <th className="py-3 px-4">Current Stock</th>
-                  <th className="py-3 px-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredItems.map((item) => {
-                  const Icon = getCategoryIcon(item.category);
-                  const isLow = item.status === 'Low' || item.stock <= item.minThreshold;
-
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-blue-50 border border-blue-200/60 text-blue-600 flex items-center justify-center shrink-0">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block leading-tight">{item.name}</span>
-                            <span className="text-[11px] font-mono text-slate-400">{item.id}</span>
-                          </div>
+      {/* Simple Searchable Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 font-medium">
+                <th className="py-3 px-6">Hospital</th>
+                <th className="py-3 px-6">Blood Units</th>
+                <th className="py-3 px-6">ICU Beds</th>
+                <th className="py-3 px-6">Medicines</th>
+                <th className="py-3 px-6 text-right">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRows.length > 0 ? (
+                filteredRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* Hospital */}
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-7 w-7 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                          <Building2 className="h-4 w-4" />
                         </div>
-                      </td>
+                        <div>
+                          <span className="font-semibold text-slate-900 block">
+                            {row.hospital}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {row.location}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
 
-                      <td className="py-3.5 px-4 font-medium text-slate-600">
-                        {item.category}
-                      </td>
+                    {/* Blood Units */}
+                    <td className="py-4 px-6 font-mono font-bold text-slate-800">
+                      {row.bloodUnits} Units
+                    </td>
 
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">
-                        {item.hospitalName}
-                      </td>
+                    {/* ICU Beds */}
+                    <td className="py-4 px-6 font-mono text-slate-700">
+                      {row.icuBeds}
+                    </td>
 
-                      <td className="py-3.5 px-4">
-                        <span className="text-sm font-extrabold text-slate-900 font-mono">
-                          {item.stock} {item.unit}
-                        </span>
-                        <span className="text-[11px] text-slate-400 block font-normal">
-                          Min safety buffer: {item.minThreshold} {item.unit}
-                        </span>
-                      </td>
+                    {/* Medicines */}
+                    <td className="py-4 px-6 text-slate-600 max-w-xs truncate" title={row.medicines}>
+                      {row.medicines}
+                    </td>
 
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                            isLow
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}
-                        >
-                          {isLow ? (
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                          )}
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    {/* Last Updated */}
+                    <td className="py-4 px-6 text-right text-slate-400 font-mono">
+                      {row.lastUpdated}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400 italic">
+                    No matching hospital inventory found for &quot;{searchQuery}&quot;.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }
