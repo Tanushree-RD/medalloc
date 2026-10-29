@@ -60,7 +60,7 @@ export function RecentRequestsTable({
       query === '' ||
       req.patient.toLowerCase().includes(query) ||
       req.resource.toLowerCase().includes(query) ||
-      req.assignedHospital.toLowerCase().includes(query) ||
+      (req.assignedHospital && req.assignedHospital.toLowerCase().includes(query)) ||
       req.id.toLowerCase().includes(query);
 
     return matchesPriority && matchesSearch;
@@ -245,9 +245,9 @@ export function RecentRequestsTable({
                       <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                       <div>
                         <span className="font-semibold text-slate-800 block leading-tight">
-                          {req.assignedHospital}
+                          {req.assignedHospital || 'Pending Dispatch'}
                         </span>
-                        {req.distanceKm > 0 && (
+                        {(req.distanceKm ?? 0) > 0 && (
                           <span className="text-[10px] text-slate-400 font-mono">
                             {req.distanceKm} km (Dijkstra optimal)
                           </span>
@@ -258,7 +258,7 @@ export function RecentRequestsTable({
 
                   {/* Status */}
                   <td className="py-3.5 px-4">
-                    {getStatusBadge(req.status)}
+                    {getStatusBadge(req.status || 'Pending')}
                   </td>
                 </tr>
               ))
