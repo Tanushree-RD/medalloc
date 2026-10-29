@@ -6,10 +6,12 @@ import {
   Building2,
   Plus,
   Minus,
-  Edit2,
   Trash2,
   X,
   PackagePlus,
+  AlertTriangle,
+  CheckCircle2,
+  Layers,
 } from 'lucide-react';
 import { useMedAlloc } from '@/context/MedAllocContext';
 import { InventoryCategory, InventoryItem } from '@/lib/types';
@@ -97,16 +99,20 @@ export function InventoryView() {
     setNewItemStock(10);
   };
 
+  const totalLines = inventory.length;
+  const lowLines = inventory.filter((i) => i.status === 'Low' || i.status === 'Critical').length;
+  const adequateLines = totalLines - lowLines;
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Hospital Inventory Management
+            Hospital Stockpile & Inventory
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Editable stockpile registry. Changes persist immediately and recalculate network availability.
+            Editable supply registry. Real-time changes immediately update localStorage and hospital availability.
           </p>
         </div>
 
@@ -119,6 +125,39 @@ export function InventoryView() {
         </button>
       </div>
 
+      {/* Summary KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cataloged Items</span>
+            <div className="text-2xl font-extrabold text-slate-900">{totalLines} lines</div>
+          </div>
+          <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
+            <Layers className="h-4.5 w-4.5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Adequate Reserves</span>
+            <div className="text-2xl font-extrabold text-emerald-600">{adequateLines} optimal</div>
+          </div>
+          <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+            <CheckCircle2 className="h-4.5 w-4.5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Low Stock Warnings</span>
+            <div className="text-2xl font-extrabold text-amber-600">{lowLines} items low</div>
+          </div>
+          <div className="h-9 w-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">
+            <AlertTriangle className="h-4.5 w-4.5" />
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar & Search */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Search Input */}
@@ -128,21 +167,20 @@ export function InventoryView() {
             type="text"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            placeholder="Search hospitals or medical items..."
-            className="w-full h-8.5 pl-9 pr-3 text-xs bg-slate-50 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
+            placeholder="Search hospitals or items..."
+            className="w-full h-8.5 pl-9 pr-3 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
         {/* Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Category Filter */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
             <span className="text-[10px] text-slate-400 px-1 font-semibold">Category:</span>
             {(['All', 'Blood', 'Medicine', 'ICU Beds', 'Ambulances', 'Doctors'] as const).map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold transition ${
                   selectedCategory === cat
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -153,14 +191,13 @@ export function InventoryView() {
             ))}
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
             <span className="text-[10px] text-slate-400 px-1 font-semibold">Status:</span>
             {(['All', 'Low/Critical', 'Adequate'] as const).map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold transition ${
                   statusFilter === st
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -173,20 +210,20 @@ export function InventoryView() {
         </div>
       </div>
 
-      {/* Editable Inventory Table */}
+      {/* Clean Modern Editable Inventory Table */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 font-medium">
-                <th className="py-3 px-5">Hospital</th>
+              <tr className="border-b border-slate-100 bg-slate-50/40 text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
+                <th className="py-3 px-5">Facility</th>
                 <th className="py-3 px-5">Resource Item</th>
                 <th className="py-3 px-5">Category</th>
-                <th className="py-3 px-5">Stock Level (Editable)</th>
+                <th className="py-3 px-5">Current Stock Level (Editable)</th>
                 <th className="py-3 px-5">Min Threshold</th>
                 <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5">Last Updated</th>
-                <th className="py-3 px-5 text-right">Quick Actions</th>
+                <th className="py-3 px-5">Updated</th>
+                <th className="py-3 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -195,21 +232,16 @@ export function InventoryView() {
                   const isEditing = editingId === item.id;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Hospital */}
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                      {/* Facility */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
                             <Building2 className="h-3.5 w-3.5" />
                           </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block truncate">
-                              {item.hospitalName}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ID: {item.hospitalId}
-                            </span>
-                          </div>
+                          <span className="font-bold text-slate-900 truncate">
+                            {item.hospitalName}
+                          </span>
                         </div>
                       </td>
 
@@ -220,12 +252,12 @@ export function InventoryView() {
 
                       {/* Category */}
                       <td className="py-3.5 px-5 text-slate-600">
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-medium">
                           {item.category}
                         </span>
                       </td>
 
-                      {/* Stock Level (EDITABLE!) */}
+                      {/* Stock Level (Sleek Stepper & Inline Edit) */}
                       <td className="py-3.5 px-5">
                         {isEditing ? (
                           <div className="flex items-center gap-1.5">
@@ -234,7 +266,7 @@ export function InventoryView() {
                               min={0}
                               value={editValue}
                               onChange={(e) => setEditValue(Number(e.target.value))}
-                              className="w-16 h-7 px-1.5 font-mono font-bold text-slate-900 border border-blue-500 rounded bg-white text-xs focus:outline-none"
+                              className="w-16 h-7 px-1.5 font-mono font-bold text-slate-900 border border-blue-500 rounded-lg bg-white text-xs focus:outline-none"
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleSaveInlineEdit(item.id);
@@ -255,27 +287,36 @@ export function InventoryView() {
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
+                          <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-xl px-1.5 py-0.5 shadow-2xs">
+                            <button
+                              onClick={() => handleQuickAdjust(item.id, item.stock, -1)}
+                              className="h-5 w-5 rounded text-slate-400 hover:text-slate-700 hover:bg-white flex items-center justify-center transition"
+                              title="Decrease 1"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+
                             <span
                               onClick={() => handleStartEditing(item)}
-                              className="font-mono font-extrabold text-sm text-slate-900 cursor-pointer hover:text-blue-600 hover:underline"
-                              title="Click to edit value directly"
+                              className="px-2 font-mono font-extrabold text-xs text-slate-900 cursor-pointer hover:text-blue-600 transition"
+                              title="Click to enter exact number"
                             >
                               {item.stock} {item.unit}
                             </span>
+
                             <button
-                              onClick={() => handleStartEditing(item)}
-                              className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition"
-                              title="Edit quantity"
+                              onClick={() => handleQuickAdjust(item.id, item.stock, +1)}
+                              className="h-5 w-5 rounded text-slate-400 hover:text-slate-700 hover:bg-white flex items-center justify-center transition"
+                              title="Increase 1"
                             >
-                              <Edit2 className="h-3 w-3" />
+                              <Plus className="h-3 w-3" />
                             </button>
                           </div>
                         )}
                       </td>
 
                       {/* Threshold */}
-                      <td className="py-3.5 px-5 font-mono text-slate-500 text-[11px]">
+                      <td className="py-3.5 px-5 font-mono text-slate-400 text-[11px]">
                         {item.minThreshold} {item.unit}
                       </td>
 
@@ -294,41 +335,25 @@ export function InventoryView() {
                         </span>
                       </td>
 
-                      {/* Last Updated */}
+                      {/* Updated */}
                       <td className="py-3.5 px-5 text-slate-400 font-mono text-[11px]">
                         {item.lastUpdated}
                       </td>
 
-                      {/* Quick Actions (+, -, Restock +5, Delete) */}
+                      {/* Actions */}
                       <td className="py-3.5 px-5 text-right space-x-1">
                         <button
-                          onClick={() => handleQuickAdjust(item.id, item.stock, -1)}
-                          className="h-6 w-6 rounded border border-slate-200 hover:bg-slate-100 text-slate-700 inline-flex items-center justify-center transition"
-                          title="Decrease 1 unit"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-
-                        <button
-                          onClick={() => handleQuickAdjust(item.id, item.stock, +1)}
-                          className="h-6 w-6 rounded border border-slate-200 hover:bg-slate-100 text-slate-700 inline-flex items-center justify-center transition"
-                          title="Increase 1 unit"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-
-                        <button
                           onClick={() => handleQuickAdjust(item.id, item.stock, +10)}
-                          className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition"
-                          title="Quick restock +10"
+                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition"
+                          title="Restock +10 units"
                         >
-                          +10
+                          +10 Restock
                         </button>
 
                         <button
                           onClick={() => deleteInventoryItem(item.id)}
-                          className="p-1 rounded text-slate-300 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Delete item"
+                          className="p-1 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
+                          title="Delete line"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -351,10 +376,10 @@ export function InventoryView() {
       {/* Add Stock Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 border border-slate-200 shadow-xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">
-                Add Inventory Supply Line
+                Add Stockpile Item
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}

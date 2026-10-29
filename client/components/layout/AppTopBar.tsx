@@ -31,6 +31,7 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
     globalSearchQuery,
     setGlobalSearchQuery,
     setActivePage,
+    hospitals,
   } = useMedAlloc();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -67,19 +68,35 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
 
   const getNotificationIcon = (type: string, severity: string) => {
     if (severity === 'critical' || type === 'low_stock') {
-      return <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />;
+      return (
+        <div className="h-6 w-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+          <AlertTriangle className="h-3.5 w-3.5" />
+        </div>
+      );
     }
     if (type === 'allocation_completed') {
-      return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
+      return (
+        <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+        </div>
+      );
     }
     if (type === 'inventory_updated') {
-      return <Package className="h-4 w-4 text-blue-600 shrink-0" />;
+      return (
+        <div className="h-6 w-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <Package className="h-3.5 w-3.5" />
+        </div>
+      );
     }
-    return <Info className="h-4 w-4 text-slate-500 shrink-0" />;
+    return (
+      <div className="h-6 w-6 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+        <Info className="h-3.5 w-3.5" />
+      </div>
+    );
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/90 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
       {/* Left: Mobile hamburger & Global Search */}
       <div className="flex items-center gap-3 flex-1 max-w-lg">
         <button
@@ -96,8 +113,8 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
             type="text"
             value={globalSearchQuery}
             onChange={(e) => setGlobalSearchQuery(e.target.value)}
-            placeholder="Search hospitals, requests, inventory, or history..."
-            className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
+            placeholder="Search patients, hospitals, inventory, or history..."
+            className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all shadow-2xs"
           />
           {globalSearchQuery && (
             <button
@@ -111,6 +128,17 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
         </div>
       </div>
 
+      {/* Center/Right: Live Network Status badge */}
+      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 font-medium">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        </span>
+        <span>Regional Grid Online</span>
+        <span className="text-slate-300">•</span>
+        <span className="text-slate-500 font-mono">{hospitals.length} Hubs Synchronized</span>
+      </div>
+
       {/* Right: Notifications & Dispatcher Profile */}
       <div className="flex items-center gap-2 sm:gap-3" ref={popoverRef}>
         {/* Notifications Popover */}
@@ -122,7 +150,7 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
           >
             <Bell className="h-5 w-5" />
             {unreadNotificationsCount > 0 && (
-              <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white shadow-2xs">
+              <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white shadow-xs">
                 {unreadNotificationsCount}
               </span>
             )}
@@ -191,7 +219,7 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
                       key={n.id}
                       onClick={() => handleNotificationClick(n)}
                       className={`py-2.5 px-2 rounded-xl transition cursor-pointer flex items-start gap-2.5 ${
-                        !n.read ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-slate-50'
+                        !n.read ? 'bg-blue-50/40 hover:bg-blue-50/70' : 'hover:bg-slate-50'
                       }`}
                     >
                       <div className="mt-0.5">
@@ -217,7 +245,7 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
                   ))
                 ) : (
                   <div className="py-6 text-center text-slate-400 italic text-[11px]">
-                    No notifications to display.
+                    No notifications in this view.
                   </div>
                 )}
               </div>
@@ -226,13 +254,13 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
         </div>
 
         {/* Dispatcher Profile */}
-        <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-          <div className="h-8 w-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs">
-            <User className="h-4 w-4" />
+        <div className="flex items-center gap-2.5 pl-2.5 border-l border-slate-200">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-700 font-bold text-xs shadow-2xs">
+            <User className="h-4 w-4 text-slate-600" />
           </div>
           <div className="hidden sm:block text-left text-xs leading-tight">
             <div className="font-bold text-slate-800">Dispatch Officer</div>
-            <div className="text-[10px] text-slate-400">Emergency Ops Hub</div>
+            <div className="text-[10px] text-slate-400 font-medium">Emergency Ops Hub</div>
           </div>
         </div>
       </div>

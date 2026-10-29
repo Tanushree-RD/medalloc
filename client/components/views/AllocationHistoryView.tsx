@@ -60,44 +60,44 @@ export function AllocationHistoryView() {
     openProcessModalWithData(processData);
   };
 
-  // Top stats
   const totalAllocations = allocationHistory.length;
   const criticalCount = allocationHistory.filter((a) => a.priority === 'Critical').length;
   const completedCount = allocationHistory.filter((a) => a.status === 'Completed').length;
-  const avgDistance = totalAllocations > 0
-    ? (allocationHistory.reduce((acc, a) => acc + (a.distance || 0), 0) / totalAllocations).toFixed(1)
-    : '0';
+  const avgDistance =
+    totalAllocations > 0
+      ? (allocationHistory.reduce((acc, a) => acc + (a.distance || 0), 0) / totalAllocations).toFixed(1)
+      : '0';
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* View Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-          Allocation History
+          Allocation History Ledger
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Permanent verifiable dispatch telemetry ledger for all hospital resource allocations.
+          Auditable telemetry record of all historical patient-to-hospital resource assignments.
         </p>
       </div>
 
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Dispatches</span>
           <div className="text-2xl font-extrabold text-slate-900">{totalAllocations}</div>
           <span className="text-[11px] text-slate-400">All recorded matches</span>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Critical Cases</span>
           <div className="text-2xl font-extrabold text-red-600">{criticalCount}</div>
-          <span className="text-[11px] text-slate-400">Highest triage acuity</span>
+          <span className="text-[11px] text-slate-400">Highest triage priority</span>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Distance</span>
           <div className="text-2xl font-extrabold text-blue-600">{avgDistance} km</div>
-          <span className="text-[11px] text-slate-400">Route-optimized radius</span>
+          <span className="text-[11px] text-slate-400">Dijkstra transit radius</span>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-1">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Completed</span>
           <div className="text-2xl font-extrabold text-emerald-600">{completedCount}</div>
           <span className="text-[11px] text-slate-400">Successfully finalized</span>
@@ -113,21 +113,20 @@ export function AllocationHistoryView() {
             type="text"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            placeholder="Search patient, hospital, resource, or ID..."
-            className="w-full h-8.5 pl-9 pr-3 text-xs bg-slate-50 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
+            placeholder="Search patient, hospital, or ID..."
+            className="w-full h-8.5 pl-9 pr-3 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
         {/* Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Priority Filter */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
             <span className="text-[10px] text-slate-400 px-1 font-semibold">Priority:</span>
             {(['All', 'Critical', 'High', 'Medium', 'Low'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPriorityFilter(p)}
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold transition ${
                   priorityFilter === p
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -138,14 +137,13 @@ export function AllocationHistoryView() {
             ))}
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
             <span className="text-[10px] text-slate-400 px-1 font-semibold">Status:</span>
             {(['All', 'Allocated', 'Completed', 'In-Transit'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                className={`px-2.5 py-0.5 rounded-lg text-[11px] font-semibold transition ${
                   statusFilter === s
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 hover:text-slate-900'
@@ -163,12 +161,12 @@ export function AllocationHistoryView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 font-medium">
+              <tr className="border-b border-slate-100 bg-slate-50/40 text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
                 <th className="py-3 px-5">ID & Patient</th>
                 <th className="py-3 px-5">Matched Facility</th>
                 <th className="py-3 px-5">Resource Assigned</th>
                 <th className="py-3 px-5">Priority</th>
-                <th className="py-3 px-5">Distance & ETA</th>
+                <th className="py-3 px-5">Transit & ETA</th>
                 <th className="py-3 px-5">Timestamp</th>
                 <th className="py-3 px-5">Status</th>
                 <th className="py-3 px-5 text-right">Telemetry</th>

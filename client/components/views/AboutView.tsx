@@ -88,7 +88,7 @@ export function AboutView() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className="max-w-4xl mx-auto space-y-8">
       {/* Title & Introduction */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600">
@@ -106,10 +106,10 @@ export function AboutView() {
       </div>
 
       {/* 1. The Problem & The Solution */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {/* The Problem */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-3">
-          <div className="h-10 w-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-sm">
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-2xs space-y-3">
+          <div className="h-10 w-10 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-sm shadow-2xs">
             <AlertCircle className="h-5 w-5" />
           </div>
           <h2 className="text-base font-bold text-slate-900">
@@ -123,8 +123,8 @@ export function AboutView() {
         </div>
 
         {/* The Solution */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-2xs space-y-3">
+          <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-2xs">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <h2 className="text-base font-bold text-slate-900">
@@ -139,7 +139,7 @@ export function AboutView() {
       </div>
 
       {/* 2. The Workflow */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs space-y-6">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 block mb-1">
             Operational Lifecycle
@@ -147,20 +147,20 @@ export function AboutView() {
           <h2 className="text-lg font-bold text-slate-900">
             How MedAlloc Works
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             An automated four-stage operational pipeline from patient triage intake to verified dispatch.
           </p>
         </div>
 
         {/* Step-by-step horizontal cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
           {workflowSteps.map((ws, idx) => (
             <div
               key={ws.step}
-              className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between space-y-2 relative"
+              className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between space-y-2 relative"
             >
               <div>
-                <span className="text-[10px] font-mono font-bold text-blue-600 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 inline-block mb-2">
+                <span className="text-[10px] font-mono font-bold text-blue-600 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 inline-block mb-2">
                   {ws.step}
                 </span>
                 <h3 className="font-bold text-sm text-slate-900">
@@ -182,7 +182,7 @@ export function AboutView() {
       </div>
 
       {/* 3. Technology Stack */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs space-y-6">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 block mb-1">
             Engineering & Infrastructure
@@ -190,7 +190,7 @@ export function AboutView() {
           <h2 className="text-lg font-bold text-slate-900">
             Technology Stack
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             Built with modern web standards, predictable state persistence, and responsive UI components.
           </p>
         </div>
@@ -201,7 +201,7 @@ export function AboutView() {
             return (
               <div
                 key={tech.tech}
-                className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3.5"
+                className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3.5"
               >
                 <div className="h-9 w-9 rounded-xl bg-blue-100/70 text-blue-700 flex items-center justify-center shrink-0">
                   <Icon className="h-4.5 w-4.5" />
@@ -224,7 +224,7 @@ export function AboutView() {
       </div>
 
       {/* 4. Team Members */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 block mb-1">
@@ -233,7 +233,7 @@ export function AboutView() {
             <h2 className="text-lg font-bold text-slate-900">
               Project Team Members
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               Multidisciplinary group spanning emergency clinical practice and systems design.
             </p>
           </div>
@@ -246,7 +246,7 @@ export function AboutView() {
           {teamMembers.map((member) => (
             <div
               key={member.name}
-              className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5"
+              className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5"
             >
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-sm text-slate-900">

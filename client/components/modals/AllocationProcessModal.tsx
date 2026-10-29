@@ -83,12 +83,12 @@ export function AllocationProcessModal({
   const remainingUnits = Math.max(0, availableUnits - quantity);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div>
-            <div className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5" />
               <span>Allocation Telemetry Log</span>
             </div>
@@ -156,24 +156,24 @@ export function AllocationProcessModal({
 
                   {/* Step Details Panel (Expanded) */}
                   {isSelected && (
-                    <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200/80 p-4 text-xs space-y-3 animate-in fade-in duration-150">
+                    <div className="mt-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 p-4 text-xs space-y-3 animate-in fade-in duration-150">
                       {/* Step 1: Request Received Details */}
                       {step.id === 1 && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Patient</span>
+                            <span className="text-slate-400 block text-[10px]">Patient</span>
                             <strong className="text-slate-800">{data.patientName}</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Resource</span>
+                            <span className="text-slate-400 block text-[10px]">Resource</span>
                             <strong className="text-slate-800">{data.resource}</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Quantity</span>
+                            <span className="text-slate-400 block text-[10px]">Quantity</span>
                             <strong className="text-slate-800">{data.quantity} Units</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Timestamp</span>
+                            <span className="text-slate-400 block text-[10px]">Timestamp</span>
                             <strong className="text-slate-800 font-mono">{data.timestamp}</strong>
                           </div>
                         </div>
@@ -182,14 +182,14 @@ export function AllocationProcessModal({
                       {/* Step 2: Prioritized Details */}
                       {step.id === 2 && (
                         <div className="space-y-2">
-                          <p className="text-slate-600">
-                            The emergency dispatch intake was evaluated and prioritized based on clinical severity.
+                          <p className="text-slate-600 leading-relaxed">
+                            The emergency dispatch intake was triaged based on patient acuity and clinical condition.
                           </p>
                           <div className="flex flex-wrap items-center gap-4 pt-1">
                             <div>
-                              <span className="text-slate-400 block text-[11px]">Assigned Priority</span>
+                              <span className="text-slate-400 block text-[10px]">Priority Tier</span>
                               <span
-                                className={`inline-block mt-0.5 px-2 py-0.5 rounded font-bold ${
+                                className={`inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-bold ${
                                   data.priority === 'Critical'
                                     ? 'text-red-700 bg-red-100 border border-red-200'
                                     : data.priority === 'High'
@@ -201,7 +201,7 @@ export function AllocationProcessModal({
                               </span>
                             </div>
                             <div className="flex-1 min-w-[200px]">
-                              <span className="text-slate-400 block text-[11px]">Clinical Triage Note</span>
+                              <span className="text-slate-400 block text-[10px]">Clinical Reason</span>
                               <strong className="text-slate-800 font-medium block truncate">
                                 {data.emergencyReason || 'Critical emergency clinical triage dispatch.'}
                               </strong>
@@ -215,30 +215,30 @@ export function AllocationProcessModal({
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div>
-                              <span className="text-slate-400 block text-[11px]">Candidate Hub</span>
+                              <span className="text-slate-400 block text-[10px]">Candidate Hub</span>
                               <strong className="text-blue-700">{data.assignedHospital}</strong>
                             </div>
                             <div>
-                              <span className="text-slate-400 block text-[11px]">Transit Distance</span>
+                              <span className="text-slate-400 block text-[10px]">Transit Distance</span>
                               <strong className="text-slate-800 font-mono">{data.distanceKm} km</strong>
                             </div>
                             <div>
-                              <span className="text-slate-400 block text-[11px]">Stock Available</span>
+                              <span className="text-slate-400 block text-[10px]">Stock Available</span>
                               <strong className="text-slate-800 font-mono">{availableUnits} Units</strong>
                             </div>
                             <div>
-                              <span className="text-slate-400 block text-[11px]">Est. Travel Time</span>
+                              <span className="text-slate-400 block text-[10px]">Est. Travel Time</span>
                               <strong className="text-blue-600 font-mono">{data.estimatedArrivalTime}</strong>
                             </div>
                           </div>
 
                           {/* Mini Map Route */}
                           <div className="pt-2">
-                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
                               <Navigation className="h-3 w-3 text-blue-600" />
                               <span>Network Dispatch Route</span>
                             </span>
-                            <div className="rounded-xl bg-white border border-slate-200 p-3 flex items-center justify-center">
+                            <div className="rounded-2xl bg-white border border-slate-200 p-3 flex items-center justify-center">
                               <svg viewBox="0 0 460 130" className="w-full max-h-32">
                                 <line x1="80" y1="65" x2="230" y2="35" stroke="#2563eb" strokeWidth="2.5" />
                                 <line x1="80" y1="65" x2="200" y2="105" stroke="#e2e8f0" strokeWidth="1.5" />
@@ -275,19 +275,19 @@ export function AllocationProcessModal({
                       {step.id === 4 && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Matched Facility</span>
+                            <span className="text-slate-400 block text-[10px]">Matched Facility</span>
                             <strong className="text-blue-700">{data.assignedHospital}</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Resource Reserved</span>
+                            <span className="text-slate-400 block text-[10px]">Resource Reserved</span>
                             <strong className="text-emerald-700">{quantity} Units</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Remaining Stock</span>
+                            <span className="text-slate-400 block text-[10px]">Remaining Stock</span>
                             <strong className="text-slate-800 font-mono">{remainingUnits} Units</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Selection Rationale</span>
+                            <span className="text-slate-400 block text-[10px]">Selection Rationale</span>
                             <strong className="text-slate-700 block truncate">
                               {data.reasonSelected || 'Lowest transit delay with guaranteed reserve.'}
                             </strong>
@@ -299,21 +299,21 @@ export function AllocationProcessModal({
                       {step.id === 5 && (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Allocation ID</span>
+                            <span className="text-slate-400 block text-[10px]">Allocation ID</span>
                             <strong className="text-slate-800 font-mono">{data.allocationId}</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Status</span>
+                            <span className="text-slate-400 block text-[10px]">Status</span>
                             <span className="inline-block px-2 py-0.5 rounded font-bold text-emerald-700 bg-emerald-100">
                               Allocated
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Assigned Facility</span>
+                            <span className="text-slate-400 block text-[10px]">Assigned Facility</span>
                             <strong className="text-slate-800 truncate">{data.assignedHospital}</strong>
                           </div>
                           <div>
-                            <span className="text-slate-400 block text-[11px]">Arrival Window</span>
+                            <span className="text-slate-400 block text-[10px]">Arrival Window</span>
                             <strong className="text-blue-600 font-mono">{data.estimatedArrivalTime}</strong>
                           </div>
                         </div>
@@ -329,10 +329,10 @@ export function AllocationProcessModal({
           <div className="border-t border-slate-200 pt-4">
             <button
               onClick={() => setTechnicalDetailsOpen(!technicalDetailsOpen)}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-left group"
+              className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-left group"
             >
               <div className="flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
                   <Cpu className="h-4 w-4" />
                 </div>
                 <div>
@@ -355,7 +355,7 @@ export function AllocationProcessModal({
             </button>
 
             {technicalDetailsOpen && (
-              <div className="mt-3 p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 text-xs space-y-3.5 animate-in fade-in duration-150">
+              <div className="mt-3 p-4 rounded-2xl bg-blue-50/50 border border-blue-200/70 text-xs space-y-3.5 animate-in fade-in duration-150">
                 <div className="flex items-center gap-1.5 font-bold text-blue-950 text-xs">
                   <Code2 className="h-4 w-4 text-blue-600" />
                   <span>Algorithmic Architecture</span>
@@ -363,7 +363,7 @@ export function AllocationProcessModal({
 
                 <div className="grid grid-cols-1 gap-2.5">
                   {/* 1. Priority Queue */}
-                  <div className="p-3 bg-white rounded-lg border border-blue-100 space-y-1">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
                     <div className="font-bold text-blue-900 text-xs">
                       1. Priority Queue
                     </div>
@@ -373,7 +373,7 @@ export function AllocationProcessModal({
                   </div>
 
                   {/* 2. Hash Map */}
-                  <div className="p-3 bg-white rounded-lg border border-blue-100 space-y-1">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
                     <div className="font-bold text-blue-900 text-xs">
                       2. Hash Map
                     </div>
@@ -383,7 +383,7 @@ export function AllocationProcessModal({
                   </div>
 
                   {/* 3. Graph */}
-                  <div className="p-3 bg-white rounded-lg border border-blue-100 space-y-1">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
                     <div className="font-bold text-blue-900 text-xs">
                       3. Graph
                     </div>
@@ -393,7 +393,7 @@ export function AllocationProcessModal({
                   </div>
 
                   {/* 4. Dijkstra */}
-                  <div className="p-3 bg-white rounded-lg border border-blue-100 space-y-1">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
                     <div className="font-bold text-blue-900 text-xs">
                       4. Dijkstra Algorithm
                     </div>
@@ -403,7 +403,7 @@ export function AllocationProcessModal({
                   </div>
 
                   {/* 5. Bipartite Matching */}
-                  <div className="p-3 bg-white rounded-lg border border-blue-100 space-y-1">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
                     <div className="font-bold text-blue-900 text-xs">
                       5. Bipartite Matching
                     </div>
