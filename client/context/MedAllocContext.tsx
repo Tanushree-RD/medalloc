@@ -73,13 +73,11 @@ interface MedAllocContextType {
 const MedAllocContext = createContext<MedAllocContextType | undefined>(undefined);
 
 const SIMULATION_STEPS = [
-  'Receiving request...',
-  'Prioritizing request...',
-  'Locating nearby hospitals...',
-  'Checking inventory...',
-  'Selecting best hospital...',
-  'Allocating resources...',
-  'Completed.',
+  'Receiving Request',
+  'Finding Resources',
+  'Checking Nearby Hospitals',
+  'Selecting Best Match',
+  'Allocation Complete',
 ];
 
 export function MedAllocProvider({ children }: { children: React.ReactNode }) {
@@ -481,7 +479,7 @@ export function MedAllocProvider({ children }: { children: React.ReactNode }) {
         isActive: false,
         currentStep: SIMULATION_STEPS.length,
         totalSteps: SIMULATION_STEPS.length,
-        stepMessage: 'Completed.',
+        stepMessage: 'Allocation Complete',
         requestId: reqId,
         progressPercent: 100,
       });

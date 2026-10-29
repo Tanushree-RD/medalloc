@@ -2,17 +2,14 @@
 
 import React from 'react';
 import {
-  AlertTriangle,
+  Plus,
+  ChevronRight,
+  ArrowUpRight,
   Droplet,
   BedDouble,
-  ArrowRight,
-  ShieldAlert,
-  User,
-  Ambulance,
-  Stethoscope,
-  ExternalLink,
-  ChevronRight,
   Activity,
+  AlertCircle,
+  Building2,
 } from 'lucide-react';
 import { useMedAlloc } from '@/context/MedAllocContext';
 import { EmergencyRequest, AllocationResultData } from '@/lib/types';
@@ -38,8 +35,17 @@ export function DashboardView({
     allocationHistory,
     lowStockAlerts,
     openProcessModalWithData,
+    updateInventoryItemStock,
     globalSearchQuery,
   } = useMedAlloc();
+
+  // Dynamic time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   // 1. Calculate KPI Metrics
   const activeRequestsCount = requests.filter(
@@ -63,49 +69,6 @@ export function DashboardView({
     return acc + (h.icuBeds?.total || 0);
   }, 0);
 
-  const cards = [
-    {
-      id: 'active_requests',
-      title: 'Active Requests',
-      value: activeRequestsCount,
-      badge: 'Live Queue',
-      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200/80',
-      description: 'Under active dispatch triage',
-      icon: Activity,
-      iconBg: 'bg-blue-50 text-blue-600',
-    },
-    {
-      id: 'critical_requests',
-      title: 'Critical Requests',
-      value: criticalRequestsCount,
-      badge: criticalRequestsCount > 0 ? 'Urgent Priority' : 'Nominal',
-      badgeColor: criticalRequestsCount > 0 ? 'bg-red-50 text-red-700 border-red-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-      description: 'Immediate clinical intake required',
-      icon: ShieldAlert,
-      iconBg: 'bg-red-50 text-red-600',
-    },
-    {
-      id: 'available_blood',
-      title: 'Available Blood Units',
-      value: totalBloodUnits,
-      badge: '8 Groups Verified',
-      badgeColor: 'bg-rose-50 text-rose-700 border-rose-200/80',
-      description: 'Synchronized across all 5 regional centers',
-      icon: Droplet,
-      iconBg: 'bg-rose-50 text-rose-600',
-    },
-    {
-      id: 'available_icu',
-      title: 'Available ICU Beds',
-      value: totalAvailableIcuBeds,
-      badge: `${totalAvailableIcuBeds} / ${totalIcuBeds} Open`,
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-      description: 'Critical care capacity currently unassigned',
-      icon: BedDouble,
-      iconBg: 'bg-emerald-50 text-emerald-600',
-    },
-  ];
-
   // Filter requests if global search query exists
   const filteredRecentRequests = requests.filter((r) => {
     if (!globalSearchQuery) return true;
@@ -116,7 +79,7 @@ export function DashboardView({
       (r.assignedHospital && r.assignedHospital.toLowerCase().includes(q)) ||
       r.priority.toLowerCase().includes(q)
     );
-  }).slice(0, 5);
+  }).slice(0, 4);
 
   const filteredRecentAllocations = allocationHistory.filter((a) => {
     if (!globalSearchQuery) return true;
@@ -126,7 +89,7 @@ export function DashboardView({
       a.hospital.toLowerCase().includes(q) ||
       a.resource.toLowerCase().includes(q)
     );
-  }).slice(0, 5);
+  }).slice(0, 4);
 
   const handleOpenProcessFromRequest = (req: EmergencyRequest) => {
     const processData: AllocationResultData = {
@@ -137,7 +100,7 @@ export function DashboardView({
       quantity: req.quantity,
       priority: req.priority,
       assignedHospital: req.assignedHospital || req.originHospital,
-      distanceKm: req.distanceKm ?? 4,
+      distanceKm: req.distanceKm ?? 4.2,
       estimatedArrivalTime: req.estimatedArrivalTime || '10 mins',
       timestamp: req.timestamp,
       availableUnits: 14,
@@ -150,387 +113,460 @@ export function DashboardView({
     openProcessModalWithData(processData);
   };
 
+  const handleOpenProcessFromHistory = (item: (typeof allocationHistory)[0]) => {
+    const processData: AllocationResultData = {
+      requestId: item.requestId || `REQ-${item.id.replace('ALC-', '')}`,
+      allocationId: item.id,
+      patientName: item.patient,
+      resource: item.resource,
+      quantity: item.quantity,
+      priority: item.priority,
+      assignedHospital: item.hospital,
+      distanceKm: item.distance,
+      estimatedArrivalTime: item.estimatedArrivalTime || '10 mins',
+      timestamp: item.timestamp,
+      availableUnits: 12,
+      previousInventoryStock: 12,
+      updatedInventoryStock: 12 - item.quantity,
+      reasonSelected: item.reasonSelected || 'Lowest transit route with guaranteed reserve.',
+      emergencyReason: 'Clinical triage dispatch authorization.',
+      status: item.status === 'Completed' ? 'Completed' : 'Allocated',
+    };
+    openProcessModalWithData(processData);
+  };
+
   return (
-    <div className="space-y-7">
-      {/* 1. Four Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  {card.title}
-                </span>
-                <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${card.iconBg} shadow-2xs`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-baseline gap-2.5">
-                  <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {card.value}
-                  </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.badgeColor}`}>
-                    {card.badge}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  {card.description}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 2. Low Stock Alert Banner (Refined, Premium, Uncluttered) */}
-      {lowStockAlerts.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50/70 via-white to-amber-50/40 rounded-2xl border border-amber-200/80 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-4.5 w-4.5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-slate-900">
-                  Critical Reserve Warnings
-                </span>
-                <span className="px-2 py-0.2 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px] font-mono">
-                  {lowStockAlerts.length} items low
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-600 mt-0.5">
-                {lowStockAlerts[0]?.hospitalName}: {lowStockAlerts[0]?.resourceName} has only {lowStockAlerts[0]?.remainingStock} {lowStockAlerts[0]?.unit} remaining.
-              </p>
-            </div>
+    <div className="space-y-12 pb-16">
+      {/* 1. EDITORIAL HERO (Linear / Notion / Stripe look) */}
+      <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pt-2">
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-100 text-xs font-medium text-neutral-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-breathing-dot" />
+            <span>Emergency network operating normally</span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onNavigateToInventory}
-              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold shadow-2xs transition inline-flex items-center gap-1.5"
-            >
-              <span>Restock Supplies</span>
-              <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Main Data Section: Recent Requests & Recent Allocations */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Recent Requests Table (7 cols) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="p-4 sm:p-5 border-b border-slate-100/90 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Recent Emergency Requests
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Live emergency intake queue across regional hospitals
-                </p>
-              </div>
-
-              <button
-                onClick={onNavigateToRequests}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-              >
-                <span>View Queue ({requests.length})</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/40 text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
-                    <th className="py-2.5 px-4">Patient</th>
-                    <th className="py-2.5 px-4">Resource</th>
-                    <th className="py-2.5 px-4">Priority</th>
-                    <th className="py-2.5 px-4">Status</th>
-                    <th className="py-2.5 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredRecentRequests.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Patient */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-[10px] font-bold">
-                            <User className="h-3 w-3" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block truncate max-w-[120px]">
-                              {req.patientName}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {req.id}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Resource */}
-                      <td className="py-3 px-4 font-medium text-slate-700 truncate max-w-[130px]">
-                        {req.resource}
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            req.priority === 'Critical'
-                              ? 'bg-red-50 text-red-700 border-red-200'
-                              : req.priority === 'High'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          {req.priority}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            req.status === 'Allocated' || req.status === 'Completed'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : req.status === 'Processing'
-                              ? 'bg-blue-50 text-blue-700'
-                              : req.status === 'Cancelled'
-                              ? 'bg-red-50 text-red-600'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {req.status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleOpenProcessFromRequest(req)}
-                          className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 font-semibold text-[11px] transition"
-                        >
-                          View Process
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-[11px] text-slate-400">
-              Showing {filteredRecentRequests.length} recent patient dispatches
-            </span>
-            <button
-              onClick={onNavigateToRequests}
-              className="font-semibold text-blue-600 hover:text-blue-700 transition inline-flex items-center gap-1 text-[11px]"
-            >
-              <span>+ Create Intake Request</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Allocations Feed (5 cols) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="p-4 sm:p-5 border-b border-slate-100/90 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Recent Allocations
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Confirmed patient-to-hospital dispatches
-                </p>
-              </div>
-
-              <button
-                onClick={onNavigateToHistory}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-              >
-                <span>Full Ledger</span>
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="divide-y divide-slate-100 p-2">
-              {filteredRecentAllocations.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 hover:bg-slate-50/80 rounded-xl transition flex items-start justify-between gap-3 text-xs"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 truncate">
-                        {item.patient}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                        {item.id}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] text-slate-600 truncate">
-                      <strong>{item.resource}</strong> matched to <strong className="text-blue-700">{item.hospital}</strong>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
-                      <span>{item.distance} km</span>
-                      <span>ETA: {item.estimatedArrivalTime}</span>
-                      <span>{item.timestamp}</span>
-                    </div>
-                  </div>
-
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 shrink-0">
-                    {item.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-50/50 border-t border-slate-100 text-center">
-            <span className="text-[11px] text-slate-400 font-mono">
-              Total Logged Dispatches: {allocationHistory.length}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Hospital Overview (Clean, Polished, Uncluttered Cards) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100/90 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              Regional Hospital Readiness
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Live capacity status across 5 coordinated medical facilities
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-[-0.03em] text-neutral-950">
+              {getGreeting()}, Dispatch Officer
+            </h1>
+            <p className="text-sm sm:text-base text-neutral-500 font-normal mt-1 leading-relaxed max-w-xl">
+              Coordinating triage prioritization, shortest-path transit, and real-time hospital stockpiles across 5 hubs.
             </p>
           </div>
-
-          <button
-            onClick={onNavigateToHospitals}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-          >
-            <span>Facility Grid</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
         </div>
 
-        <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-          {hospitals.map((hosp) => {
-            const bloodCount = Object.values(hosp.bloodAvailability || {}).reduce((a, b) => a + b, 0);
-            const occupiedPercent = Math.round((hosp.icuBeds.occupied / hosp.icuBeds.total) * 100);
+        {/* Primary CTA */}
+        <button
+          onClick={onNavigateToRequests}
+          className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white font-medium text-sm shadow-editorial transition-all duration-150 active:scale-[0.98] self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="h-4 w-4 stroke-[2]" />
+          <span>New Emergency Request</span>
+        </button>
+      </section>
 
-            return (
-              <div
-                key={hosp.id}
-                className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-blue-300 hover:shadow-xs transition space-y-3 flex flex-col justify-between"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-1">
-                    <h4 className="font-bold text-xs text-slate-900 leading-tight">
-                      {hosp.name}
-                    </h4>
-                    <span
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${
-                        hosp.status === 'Available'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : hosp.status === 'Busy'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-red-50 text-red-700'
-                      }`}
-                    >
+      {/* 2. STATISTIC METRIC CARDS (Quiet, Spacious, Large Numbers) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Card 1: Blood Units */}
+        <div className="bg-white rounded-2xl p-6 border border-black/[0.04] shadow-editorial hover:shadow-editorial-hover transition-all duration-200 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-neutral-500">
+              Available Blood Units
+            </span>
+            <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-700">
+              <Droplet className="h-4 w-4 stroke-[1.75]" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl sm:text-4xl font-medium tracking-tight text-neutral-950">
+              {totalBloodUnits}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-xs font-medium text-emerald-600">
+                +18 units
+              </span>
+              <span className="text-xs text-neutral-400">
+                across regional hubs
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: ICU Beds */}
+        <div className="bg-white rounded-2xl p-6 border border-black/[0.04] shadow-editorial hover:shadow-editorial-hover transition-all duration-200 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-neutral-500">
+              Available ICU Beds
+            </span>
+            <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-700">
+              <BedDouble className="h-4 w-4 stroke-[1.75]" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl sm:text-4xl font-medium tracking-tight text-neutral-950">
+              {totalAvailableIcuBeds}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-xs font-medium text-neutral-700">
+                {totalAvailableIcuBeds} of {totalIcuBeds} open
+              </span>
+              <span className="text-xs text-neutral-400">
+                ({Math.round((totalAvailableIcuBeds / (totalIcuBeds || 1)) * 100)}% capacity)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Active Requests */}
+        <div className="bg-white rounded-2xl p-6 border border-black/[0.04] shadow-editorial hover:shadow-editorial-hover transition-all duration-200 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-neutral-500">
+              Active Queue
+            </span>
+            <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-700">
+              <Activity className="h-4 w-4 stroke-[1.75]" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl sm:text-4xl font-medium tracking-tight text-neutral-950">
+              {activeRequestsCount}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-xs font-medium text-neutral-700">
+                Live intake
+              </span>
+              <span className="text-xs text-neutral-400">
+                in active routing
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Critical Acuity */}
+        <div className="bg-white rounded-2xl p-6 border border-black/[0.04] shadow-editorial hover:shadow-editorial-hover transition-all duration-200 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-neutral-500">
+              Critical Acuity
+            </span>
+            <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-700">
+              <AlertCircle className="h-4 w-4 stroke-[1.75]" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl sm:text-4xl font-medium tracking-tight text-neutral-950">
+              {criticalRequestsCount}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="text-xs font-medium text-rose-600">
+                Immediate response
+              </span>
+              <span className="text-xs text-neutral-400">
+                priority tier 1
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. TWO-COLUMN LAYOUT: Recent Requests (Left) & Recent Allocations (Right) */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+        {/* LEFT: Recent Requests */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-neutral-950">
+                Emergency Requests
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Active triage queue pending resource confirmation
+              </p>
+            </div>
+            <button
+              onClick={onNavigateToRequests}
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-950 flex items-center gap-1 transition"
+            >
+              <span>View all</span>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {filteredRecentRequests.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-white border border-black/[0.04] text-center text-xs text-neutral-400">
+                No active requests in queue
+              </div>
+            ) : (
+              filteredRecentRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-white rounded-2xl p-4 sm:p-5 border border-black/[0.04] shadow-editorial-sm hover:shadow-editorial hover:border-black/[0.08] transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                >
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {/* Priority Dot */}
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          hosp.status === 'Available'
-                            ? 'bg-emerald-500'
-                            : hosp.status === 'Busy'
+                        className={`h-2 w-2 rounded-full shrink-0 ${
+                          req.priority === 'Critical'
+                            ? 'bg-rose-500'
+                            : req.priority === 'High'
                             ? 'bg-amber-500'
-                            : 'bg-red-500'
+                            : 'bg-neutral-400'
                         }`}
                       />
-                      <span>{hosp.status}</span>
-                    </span>
+                      <span className="text-sm font-medium text-neutral-900 truncate">
+                        {req.patientName}
+                      </span>
+                      <span className="text-xs text-neutral-400">
+                        {req.patientAge}y · {req.patientLocation}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-neutral-500">
+                      <span className="font-medium text-neutral-700">
+                        {req.resource} ({req.quantity})
+                      </span>
+                      <span>•</span>
+                      <span className="text-neutral-400">
+                        {req.assignedHospital || req.originHospital}
+                      </span>
+                      <span>•</span>
+                      <span className="text-neutral-400">
+                        {req.timestamp}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 block truncate">
-                    {hosp.location} • {hosp.distanceKm} km
-                  </span>
+
+                  <button
+                    onClick={() => handleOpenProcessFromRequest(req)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 group-hover:text-neutral-950 px-3 py-1.5 rounded-full bg-neutral-50 group-hover:bg-neutral-100 transition self-start sm:self-auto cursor-pointer"
+                  >
+                    <span>Inspect</span>
+                    <ArrowUpRight className="h-3 w-3 stroke-[2]" />
+                  </button>
                 </div>
+              ))
+            )}
+          </div>
+        </div>
 
-                {/* Capacity breakdown */}
-                <div className="space-y-2 text-[11px] pt-2 border-t border-slate-100">
-                  {/* ICU Capacity Bar */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                      <span>ICU Occupancy:</span>
-                      <strong className="text-slate-800 font-mono">{occupiedPercent}%</strong>
+        {/* RIGHT: Live Allocation Stream */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-neutral-950">
+                Live Dispatch Stream
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Completed hospital route matches & telemetry
+              </p>
+            </div>
+            <button
+              onClick={onNavigateToHistory}
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-950 flex items-center gap-1 transition"
+            >
+              <span>View ledger</span>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {filteredRecentAllocations.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-white border border-black/[0.04] text-center text-xs text-neutral-400">
+                No allocations logged yet
+              </div>
+            ) : (
+              filteredRecentAllocations.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-2xl p-4 sm:p-5 border border-black/[0.04] shadow-editorial-sm hover:shadow-editorial hover:border-black/[0.08] transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                >
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-neutral-900 truncate">
+                        {item.patient}
+                      </span>
+                      <span className="text-xs text-neutral-400">
+                        → {item.hospital}
+                      </span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          occupiedPercent > 85 ? 'bg-amber-500' : 'bg-blue-600'
-                        }`}
-                        style={{ width: `${occupiedPercent}%` }}
-                      />
+
+                    <div className="flex items-center gap-3 text-xs text-neutral-500">
+                      <span className="font-medium text-neutral-700">
+                        {item.resource}
+                      </span>
+                      <span>•</span>
+                      <span className="text-neutral-400">
+                        {item.distance} km ({item.estimatedArrivalTime})
+                      </span>
+                      <span>•</span>
+                      <span className="text-emerald-600 font-medium">
+                        Allocated
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-slate-600 pt-0.5">
-                    <span className="flex items-center gap-1">
-                      <Droplet className="h-3 w-3 text-rose-500" />
-                      <span>Blood Units:</span>
-                    </span>
-                    <strong className="text-slate-900 font-mono">{bloodCount}</strong>
-                  </div>
+                  <button
+                    onClick={() => handleOpenProcessFromHistory(item)}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 group-hover:text-neutral-950 px-3 py-1.5 rounded-full bg-neutral-50 group-hover:bg-neutral-100 transition self-start sm:self-auto cursor-pointer"
+                  >
+                    <span>Details</span>
+                    <ArrowUpRight className="h-3 w-3 stroke-[2]" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
 
-                  <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <Ambulance className="h-3 w-3 text-blue-600" />
-                      <span>Ambulances:</span>
-                    </span>
-                    <strong className="text-slate-900 font-mono">{hosp.ambulances?.available ?? 3} open</strong>
-                  </div>
+      {/* 4. LOW STOCK ALERTS (Clean, Calm, Urgent Without Clutter) */}
+      {lowStockAlerts.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight text-neutral-950">
+                Stockpile Alerts
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Resources depleted below safe clinical reserve thresholds
+              </p>
+            </div>
+            <button
+              onClick={onNavigateToInventory}
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-950 flex items-center gap-1 transition"
+            >
+              <span>Manage inventory</span>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
 
-                  <div className="flex items-center justify-between text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <Stethoscope className="h-3 w-3 text-indigo-600" />
-                      <span>Doctors:</span>
-                    </span>
-                    <strong className="text-slate-900 font-mono">{hosp.doctorsAvailable ?? 12}</strong>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {lowStockAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="bg-white rounded-2xl p-5 border border-black/[0.04] shadow-editorial-sm flex items-center justify-between gap-4"
+              >
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Droplet className="h-4 w-4 stroke-[1.75]" />
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <h3 className="text-sm font-semibold tracking-tight text-neutral-900 truncate">
+                      {alert.resourceName} Running Low
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      {alert.hospitalName} · Only <span className="font-medium text-rose-600">{alert.remainingStock} {alert.unit}</span> remaining.
+                    </p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => {
-                    if (onSelectHospitalDetails) {
-                      onSelectHospitalDetails(hosp.id);
-                    } else {
-                      onNavigateToHospitals();
-                    }
+                    const inventoryId = alert.id.replace('ALERT-', '');
+                    updateInventoryItemStock(inventoryId, alert.remainingStock + 10);
                   }}
-                  className="w-full py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[11px] transition inline-flex items-center justify-center gap-1"
+                  className="px-4 py-2 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-medium transition cursor-pointer shrink-0"
                 >
-                  <span>View Details</span>
-                  <ExternalLink className="h-3 w-3 text-slate-400" />
+                  Restock (+10)
                 </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 5. HOSPITAL NETWORK AVAILABILITY CARDS */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-neutral-950">
+              Coordinated Hospital Network
+            </h2>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              Live capacity and medical reserves across all participating facilities
+            </p>
+          </div>
+          <button
+            onClick={onNavigateToHospitals}
+            className="text-xs font-medium text-neutral-500 hover:text-neutral-950 flex items-center gap-1 transition"
+          >
+            <span>View all 5 hubs</span>
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {hospitals.map((hosp) => {
+            const totalBlood = Object.values(hosp.bloodAvailability || {}).reduce((a, b) => a + b, 0);
+            const icuPercent = Math.round(
+              ((hosp.icuBeds.total - hosp.icuBeds.available) / (hosp.icuBeds.total || 1)) * 100
+            );
+
+            return (
+              <div
+                key={hosp.id}
+                onClick={() => onSelectHospitalDetails && onSelectHospitalDetails(hosp.id)}
+                className="bg-white rounded-2xl p-5 border border-black/[0.04] shadow-editorial hover:shadow-editorial-hover hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-4 group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold tracking-tight text-neutral-950 group-hover:text-blue-600 transition-colors">
+                      {hosp.name}
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">
+                      {hosp.location} · {hosp.distanceKm} km away
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                      hosp.status === 'Available'
+                        ? 'bg-neutral-100 text-neutral-700'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        hosp.status === 'Available' ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    {hosp.status}
+                  </span>
+                </div>
+
+                {/* ICU Capacity meter */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-neutral-500 font-normal">ICU Beds</span>
+                    <span className="font-medium text-neutral-800">
+                      {hosp.icuBeds.available} available ({hosp.icuBeds.total} total)
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        icuPercent > 80 ? 'bg-rose-500' : 'bg-neutral-900'
+                      }`}
+                      style={{ width: `${icuPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick stats footer */}
+                <div className="pt-2 border-t border-black/[0.03] flex items-center justify-between text-xs text-neutral-500">
+                  <div className="flex items-center gap-1">
+                    <Droplet className="h-3.5 w-3.5 text-neutral-400" />
+                    <span>{totalBlood} blood units</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5 text-neutral-400" />
+                    <span>{hosp.doctorsAvailable} doctors on duty</span>
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

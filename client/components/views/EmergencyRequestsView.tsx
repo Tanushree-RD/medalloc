@@ -3,14 +3,9 @@
 import React, { useState } from 'react';
 import {
   Send,
-  CheckCircle2,
-  RotateCcw,
-  Eye,
   AlertTriangle,
   Search,
   Sparkles,
-  User,
-  Check,
   Plus,
   Minus,
   Droplet,
@@ -19,9 +14,11 @@ import {
   Ambulance,
   Wind,
   Zap,
+  ArrowUpRight,
+  Check,
 } from 'lucide-react';
 import { useMedAlloc } from '@/context/MedAllocContext';
-import { PriorityLevel, RequestStatus, AllocationResultData } from '@/lib/types';
+import { PriorityLevel, AllocationResultData } from '@/lib/types';
 
 interface EmergencyRequestsViewProps {
   onOpenProcessModal?: (data: AllocationResultData) => void;
@@ -34,14 +31,13 @@ export function EmergencyRequestsView({
     requests,
     hospitals,
     submitEmergencyRequest,
-    updateRequestStatus,
     simulationState,
     openProcessModalWithData,
     globalSearchQuery,
   } = useMedAlloc();
 
-  // Active Tab: 'form' (Intake & Simulation) or 'queue' (All Requests)
-  const [activeTab, setActiveTab] = useState<'form' | 'queue'>('form');
+  // Mode: 'intake' | 'allocating' | 'result' | 'queue'
+  const [viewMode, setViewMode] = useState<'intake' | 'allocating' | 'result' | 'queue'>('intake');
 
   // Form State
   const [patientName, setPatientName] = useState('');
@@ -62,12 +58,11 @@ export function EmergencyRequestsView({
   const [allocationResult, setAllocationResult] = useState<AllocationResultData | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Table Filters & Search
+  // Queue Filters & Search
   const [searchFilter, setSearchFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<'All' | PriorityLevel>('All');
-  const [statusFilter, setStatusFilter] = useState<'All' | RequestStatus>('All');
 
-  // One-click Clinical Triage Presets
+  // 1-Click Clinical Presets
   const applyPreset = (preset: {
     name: string;
     age: number;
@@ -93,428 +88,220 @@ export function EmergencyRequestsView({
     setFormError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
 
     if (!patientName.trim()) {
-      setFormError('Please enter patient full name.');
+      setFormError('Please enter a valid patient name or triage identifier.');
       return;
     }
-    if (quantity < 1) {
-      setFormError('Quantity required must be at least 1.');
+    if (quantity <= 0) {
+      setFormError('Requested quantity must be at least 1 unit.');
       return;
     }
+
+    setFormError(null);
+    setViewMode('allocating');
 
     try {
       const result = await submitEmergencyRequest({
         patientName: patientName.trim(),
-        patientAge: Number(patientAge) || 40,
+        patientAge,
         patientGender,
-        patientLocation: patientLocation.trim() || 'Central District',
+        patientLocation,
         originHospital,
         resourceType,
-        bloodGroup,
-        medicineName,
-        quantity: Number(quantity) || 1,
+        bloodGroup: resourceType === 'Blood Products' ? bloodGroup : undefined,
+        medicineName: resourceType === 'Pharmaceuticals' ? medicineName : undefined,
+        quantity,
         priority,
-        emergencyNotes: emergencyNotes.trim() || 'Urgent clinical dispatch intake.',
+        emergencyNotes: emergencyNotes.trim() || `${priority} clinical priority request for ${resourceType}.`,
       });
 
       setAllocationResult(result);
-    } catch (err) {
-      console.error(err);
-      setFormError('An error occurred during simulated allocation.');
+      setViewMode('result');
+    } catch {
+      setFormError('Simulation failed. Please try submitting again.');
+      setViewMode('intake');
     }
   };
 
-  const handleResetForm = () => {
-    setAllocationResult(null);
-    setPatientName('');
-    setQuantity(2);
-    setPriority('Critical');
-    setEmergencyNotes('');
-    setFormError(null);
-  };
-
-  const handleViewProcess = (result: AllocationResultData) => {
-    if (onOpenProcessModal) {
-      onOpenProcessModal(result);
-    } else {
-      openProcessModalWithData(result);
-    }
-  };
-
-  // Filter requests for the table
-  const effectiveSearch = searchFilter || globalSearchQuery;
-  const filteredRequests = requests.filter((req) => {
+  // Filter requests for Queue view
+  const effectiveQueueSearch = searchFilter || globalSearchQuery;
+  const filteredRequests = requests.filter((r) => {
     const matchesSearch =
-      !effectiveSearch ||
-      req.patientName.toLowerCase().includes(effectiveSearch.toLowerCase()) ||
-      req.resource.toLowerCase().includes(effectiveSearch.toLowerCase()) ||
-      (req.assignedHospital && req.assignedHospital.toLowerCase().includes(effectiveSearch.toLowerCase())) ||
-      req.id.toLowerCase().includes(effectiveSearch.toLowerCase());
+      !effectiveQueueSearch ||
+      r.patientName.toLowerCase().includes(effectiveQueueSearch.toLowerCase()) ||
+      r.resource.toLowerCase().includes(effectiveQueueSearch.toLowerCase()) ||
+      (r.assignedHospital && r.assignedHospital.toLowerCase().includes(effectiveQueueSearch.toLowerCase())) ||
+      r.id.toLowerCase().includes(effectiveQueueSearch.toLowerCase());
 
-    const matchesPriority = priorityFilter === 'All' || req.priority === priorityFilter;
-    const matchesStatus = statusFilter === 'All' || req.status === statusFilter;
+    const matchesPriority = priorityFilter === 'All' || r.priority === priorityFilter;
 
-    return matchesSearch && matchesPriority && matchesStatus;
+    return matchesSearch && matchesPriority;
   });
 
-  const resourceOptions: Array<{
-    id: typeof resourceType;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }> = [
-    { id: 'Blood Products', label: 'Blood Units', icon: Droplet },
-    { id: 'ICU Bed', label: 'ICU Bed', icon: BedDouble },
-    { id: 'Ventilator', label: 'Ventilator', icon: Wind },
-    { id: 'Pharmaceuticals', label: 'Medicine', icon: Pill },
-    { id: 'Medical Oxygen', label: 'Oxygen 50L', icon: Sparkles },
-    { id: 'Ambulance', label: 'Ambulance', icon: Ambulance },
-  ];
+  const getPriorityDot = (p: PriorityLevel) => {
+    switch (p) {
+      case 'Critical':
+        return 'bg-rose-500';
+      case 'High':
+        return 'bg-amber-500';
+      case 'Medium':
+        return 'bg-blue-500';
+      case 'Low':
+        return 'bg-neutral-400';
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Top Header & Tab Toggle */}
+    <div className="space-y-8 pb-16">
+      {/* 1. TOP HEADER & VIEW MODE SWITCHER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Emergency Dispatch & Intake
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-neutral-950">
+            Clinical Triage & Allocation
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time medical intake, algorithmic resource allocation, and active triage tracking.
+          <p className="text-xs sm:text-sm text-neutral-500 font-normal mt-1">
+            Algorithmic priority queue matching emergency patient acuity with regional inventories.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200 text-xs font-semibold self-start sm:self-auto">
+        {/* View Mode Switcher */}
+        <div className="inline-flex p-1 bg-neutral-100 rounded-full border border-black/[0.04] self-start sm:self-auto">
           <button
-            onClick={() => setActiveTab('form')}
-            className={`px-3.5 py-1.5 rounded-lg transition ${
-              activeTab === 'form'
-                ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+            onClick={() => setViewMode('intake')}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition cursor-pointer ${
+              viewMode === 'intake' || viewMode === 'allocating' || viewMode === 'result'
+                ? 'bg-white text-neutral-950 shadow-2xs'
+                : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            New Request Intake
+            New Request
           </button>
           <button
-            onClick={() => setActiveTab('queue')}
-            className={`px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
-              activeTab === 'queue'
-                ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+            onClick={() => setViewMode('queue')}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'queue'
+                ? 'bg-white text-neutral-950 shadow-2xs'
+                : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
-            <span>All Requests Queue</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px] font-mono">
+            <span>Active Queue</span>
+            <span className="text-[10px] font-mono text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full">
               {requests.length}
             </span>
           </button>
         </div>
       </div>
 
-      {/* VIEW TAB 1: NEW REQUEST INTAKE */}
-      {activeTab === 'form' && (
-        <div className="space-y-6 max-w-3xl mx-auto">
-          {/* SIMULATION RUNNING OVERLAY / PROGRESS CARD */}
-          {simulationState.isActive ? (
-            <div className="bg-white rounded-3xl border border-blue-200/90 shadow-xl p-6 sm:p-8 space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
-                    <Sparkles className="h-5 w-5 animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      Simulating Regional Allocation
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Executing spatial Dijkstra routing and capacity matching...
-                    </p>
-                  </div>
-                </div>
+      {/* 2. MODE: INTAKE FORM */}
+      {viewMode === 'intake' && (
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* Quick 1-Click Clinical Presets */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-black/[0.03] space-y-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-600">
+              <Sparkles className="h-3.5 w-3.5 stroke-[1.75]" />
+              <span>1-Click Clinical Triage Scenarios</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  applyPreset({
+                    name: 'Jonathan Vance',
+                    age: 38,
+                    gender: 'M',
+                    location: 'Highway 101, Marker 44',
+                    resource: 'Blood Products',
+                    bloodGroup: 'O-',
+                    qty: 3,
+                    priority: 'Critical',
+                    notes: 'Major arterial trauma from high-speed motor vehicle collision. Acute hemorrhage protocol.',
+                  })
+                }
+                className="px-3 py-1.5 rounded-full bg-white hover:bg-neutral-100/80 border border-black/[0.06] text-xs font-normal text-neutral-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Acute Hemorrhage (O-)</span>
+              </button>
 
-                <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                  {simulationState.progressPercent}% Completed
-                </span>
+              <button
+                type="button"
+                onClick={() =>
+                  applyPreset({
+                    name: 'Beatrix Morales',
+                    age: 64,
+                    gender: 'F',
+                    location: 'North District Clinic',
+                    resource: 'ICU Bed',
+                    qty: 1,
+                    priority: 'High',
+                    notes: 'Post-cardiac arrest stabilization requiring continuous telemetry and invasive monitoring.',
+                  })
+                }
+                className="px-3 py-1.5 rounded-full bg-white hover:bg-neutral-100/80 border border-black/[0.06] text-xs font-normal text-neutral-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Adult ICU Admission</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  applyPreset({
+                    name: 'David Thorne',
+                    age: 52,
+                    gender: 'M',
+                    location: 'East Industrial Complex',
+                    resource: 'Pharmaceuticals',
+                    medicine: 'Paracetamol (500mg IV)',
+                    qty: 4,
+                    priority: 'Medium',
+                    notes: 'Emergency IV replenishment for regional triage unit.',
+                  })
+                }
+                className="px-3 py-1.5 rounded-full bg-white hover:bg-neutral-100/80 border border-black/[0.06] text-xs font-normal text-neutral-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Emergency IV Stock</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Intake Form */}
+          <form
+            onSubmit={handleFormSubmit}
+            className="bg-white rounded-3xl p-6 sm:p-8 border border-black/[0.04] shadow-editorial space-y-6"
+          >
+            {formError && (
+              <div className="p-4 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{formError}</span>
               </div>
+            )}
 
-              {/* Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${simulationState.progressPercent}%` }}
+            {/* Patient Demographics */}
+            <div className="space-y-4">
+              <h2 className="text-sm font-semibold tracking-tight text-neutral-950">
+                1. Patient Demographics & Location
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Patient Name or Identifier
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="e.g. John Doe / Trauma Code-12"
+                    className="w-full h-10 px-3.5 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
                   />
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium text-right font-mono">
-                  Step {simulationState.currentStep} of {simulationState.totalSteps}
-                </div>
-              </div>
 
-              {/* Step Sequence Display */}
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-100 space-y-2 text-xs">
-                {[
-                  'Receiving request...',
-                  'Prioritizing request...',
-                  'Locating nearby hospitals...',
-                  'Checking inventory...',
-                  'Selecting best hospital...',
-                  'Allocating resources...',
-                  'Completed.',
-                ].map((stepText, idx) => {
-                  const isCurrent = simulationState.currentStep === idx + 1;
-                  const isDone = simulationState.currentStep > idx + 1;
-
-                  return (
-                    <div
-                      key={stepText}
-                      className={`flex items-center gap-2.5 p-2 rounded-xl transition-all ${
-                        isCurrent
-                          ? 'bg-blue-100/80 text-blue-900 font-bold shadow-2xs'
-                          : isDone
-                          ? 'text-emerald-700 font-medium'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      <div className="h-5 w-5 rounded-full flex items-center justify-center shrink-0">
-                        {isDone ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        ) : isCurrent ? (
-                          <div className="h-3.5 w-3.5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
-                        ) : (
-                          <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                        )}
-                      </div>
-                      <span>{stepText}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : allocationResult ? (
-            /* ALLOCATION RESULT CONFIRMED CARD */
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 sm:p-8 space-y-6 animate-in fade-in zoom-in-95 duration-200">
-              {/* Header Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-3.5">
-                  <div className="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
-                    <CheckCircle2 className="h-6 w-6 stroke-[2.5]" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                      Resource Allocation Confirmed
-                    </span>
-                    <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
-                      Patient Assigned to {allocationResult.assignedHospital}
-                    </h2>
-                  </div>
-                </div>
-
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 self-start sm:self-auto font-mono">
-                  ID: {allocationResult.allocationId}
-                </span>
-              </div>
-
-              {/* Automatic Inventory Change Alert */}
-              <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-blue-900 flex items-center gap-1.5">
-                    <Check className="h-4 w-4 text-emerald-600" />
-                    <span>Inventory Updated Successfully</span>
-                  </div>
-                  <p className="text-slate-600 text-[11px]">
-                    Automatic inventory reserve applied at {allocationResult.assignedHospital}.
-                  </p>
-                </div>
-
-                <div className="px-3 py-1.5 rounded-xl bg-white border border-blue-200 font-mono font-bold text-blue-900 text-xs shadow-2xs self-start sm:self-auto">
-                  {allocationResult.resource.split('(')[0].trim()}: {allocationResult.previousInventoryStock} ↓ {allocationResult.updatedInventoryStock} units
-                </div>
-              </div>
-
-              {/* Allocation Details Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Patient</span>
-                  <strong className="text-slate-900 text-sm block truncate">
-                    {allocationResult.patientName}
-                  </strong>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Requested Resource</span>
-                  <strong className="text-slate-900 text-sm block truncate">
-                    {allocationResult.resource}
-                  </strong>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Assigned Facility</span>
-                  <strong className="text-blue-700 text-sm block truncate">
-                    {allocationResult.assignedHospital}
-                  </strong>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Transit Distance</span>
-                  <strong className="text-slate-900 text-sm font-mono block">
-                    {allocationResult.distanceKm} km
-                  </strong>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Estimated Arrival</span>
-                  <strong className="text-blue-600 text-sm font-mono block">
-                    {allocationResult.estimatedArrivalTime}
-                  </strong>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Priority</span>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                      allocationResult.priority === 'Critical'
-                        ? 'bg-red-100 text-red-700'
-                        : allocationResult.priority === 'High'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
-                  >
-                    {allocationResult.priority}
-                  </span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Status</span>
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-100">
-                    Allocated
-                  </span>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Reserved Stock</span>
-                  <strong className="text-slate-800 text-sm block truncate">
-                    {allocationResult.quantity} Units Locked
-                  </strong>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100">
-                <button
-                  onClick={handleResetForm}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span>New Request</span>
-                </button>
-
-                <button
-                  onClick={() => handleViewProcess(allocationResult)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition"
-                >
-                  <Eye className="h-4 w-4" />
-                  <span>View Allocation Process</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* MODERN INTAKE FORM (With One-Click Clinical Presets!) */
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-6">
-              {/* Presets Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                  <Zap className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Quick Clinical Intake Presets (1-Click Fill)</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyPreset({
-                        name: 'Marcus Vance',
-                        age: 48,
-                        gender: 'M',
-                        location: 'Highway 4 Bypass',
-                        resource: 'Blood Products',
-                        bloodGroup: 'A+',
-                        qty: 2,
-                        priority: 'Critical',
-                        notes: 'Severe motor trauma with acute hemorrhagic shock.',
-                      })
-                    }
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 text-[11px] font-medium transition text-slate-700"
-                  >
-                    🩸 A+ Blood Transfusion (2u)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyPreset({
-                        name: 'Emily Watson',
-                        age: 62,
-                        gender: 'F',
-                        location: 'Central Plaza',
-                        resource: 'ICU Bed',
-                        qty: 1,
-                        priority: 'High',
-                        notes: 'Acute myocardial infarction post-cardiac catheterization.',
-                      })
-                    }
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 text-[11px] font-medium transition text-slate-700"
-                  >
-                    🛏️ Adult ICU Bed (1 bed)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyPreset({
-                        name: 'David Kim',
-                        age: 35,
-                        gender: 'M',
-                        location: 'North Corridor',
-                        resource: 'Blood Products',
-                        bloodGroup: 'O-',
-                        qty: 3,
-                        priority: 'Critical',
-                        notes: 'Ruptured spleen requiring urgent universal donor blood.',
-                      })
-                    }
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 text-[11px] font-medium transition text-slate-700"
-                  >
-                    🚨 O- Blood (Trauma 3u)
-                  </button>
-                </div>
-              </div>
-
-              {formError && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-5 text-xs">
-                {/* Row 1: Patient Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
-                  <div className="sm:col-span-6">
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Patient Full Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Eleanor Vance"
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <label className="block font-semibold text-slate-700 mb-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-600">
                       Age
                     </label>
                     <input
@@ -523,18 +310,18 @@ export function EmergencyRequestsView({
                       max={120}
                       value={patientAge}
                       onChange={(e) => setPatientAge(Number(e.target.value))}
-                      className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition font-mono"
+                      className="w-full h-10 px-3.5 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
                     />
                   </div>
 
-                  <div className="sm:col-span-3">
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Gender
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-neutral-600">
+                      Sex
                     </label>
                     <select
                       value={patientGender}
                       onChange={(e) => setPatientGender(e.target.value as 'M' | 'F' | 'Other')}
-                      className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition cursor-pointer"
+                      className="w-full h-10 px-2 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
                     >
                       <option value="M">Male</option>
                       <option value="F">Female</option>
@@ -542,412 +329,439 @@ export function EmergencyRequestsView({
                     </select>
                   </div>
                 </div>
+              </div>
 
-                {/* Row 2: Origin Hospital & Incident Location */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Requesting / Origin Facility
-                    </label>
-                    <select
-                      value={originHospital}
-                      onChange={(e) => setOriginHospital(e.target.value)}
-                      className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition cursor-pointer font-medium"
-                    >
-                      {hospitals.map((h) => (
-                        <option key={h.id} value={h.name}>
-                          {h.name} ({h.location})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Incident / Pickup Location
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Sector 4 Corridor"
-                      value={patientLocation}
-                      onChange={(e) => setPatientLocation(e.target.value)}
-                      className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Incident Location / Coordinates
+                  </label>
+                  <input
+                    type="text"
+                    value={patientLocation}
+                    onChange={(e) => setPatientLocation(e.target.value)}
+                    placeholder="e.g. Sector 4, Westside"
+                    className="w-full h-10 px-3.5 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
+                  />
                 </div>
 
-                {/* Row 3: Segmented Visual Resource Selector */}
                 <div className="space-y-1.5">
-                  <label className="block font-semibold text-slate-700">
-                    Required Medical Resource
+                  <label className="text-xs font-medium text-neutral-600">
+                    Requesting Facility / Unit
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {resourceOptions.map((opt) => {
-                      const Icon = opt.icon;
-                      const isSelected = resourceType === opt.id;
+                  <select
+                    value={originHospital}
+                    onChange={(e) => setOriginHospital(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
+                  >
+                    {hospitals.map((h) => (
+                      <option key={h.id} value={h.name}>
+                        {h.name} ({h.location})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
+            {/* Requested Resource */}
+            <div className="space-y-4 pt-4 border-t border-black/[0.04]">
+              <h2 className="text-sm font-semibold tracking-tight text-neutral-950">
+                2. Resource Selection
+              </h2>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[
+                  { label: 'Blood Products', icon: Droplet },
+                  { label: 'ICU Bed', icon: BedDouble },
+                  { label: 'Ventilator', icon: Wind },
+                  { label: 'Pharmaceuticals', icon: Pill },
+                  { label: 'Medical Oxygen', icon: Zap },
+                  { label: 'Ambulance', icon: Ambulance },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = resourceType === item.label;
+                  return (
+                    <button
+                      type="button"
+                      key={item.label}
+                      onClick={() => setResourceType(item.label as typeof resourceType)}
+                      className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 cursor-pointer ${
+                        isSelected
+                          ? 'border-neutral-950 bg-neutral-950 text-white shadow-2xs'
+                          : 'border-black/[0.06] bg-neutral-50/60 hover:bg-neutral-100 text-neutral-700'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 stroke-[1.75] ${isSelected ? 'text-white' : 'text-neutral-500'}`} />
+                      <span className="text-xs font-medium">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Resource Sub-options */}
+              {resourceType === 'Blood Products' && (
+                <div className="p-4 rounded-xl bg-neutral-50/70 border border-black/[0.04] space-y-2">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Blood Group
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((grp) => (
+                      <button
+                        type="button"
+                        key={grp}
+                        onClick={() => setBloodGroup(grp)}
+                        className={`h-8 w-11 rounded-lg text-xs font-mono font-medium transition cursor-pointer ${
+                          bloodGroup === grp
+                            ? 'bg-neutral-950 text-white'
+                            : 'bg-white border border-black/[0.06] text-neutral-700 hover:bg-neutral-100'
+                        }`}
+                      >
+                        {grp}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {resourceType === 'Pharmaceuticals' && (
+                <div className="p-4 rounded-xl bg-neutral-50/70 border border-black/[0.04] space-y-2">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Pharmaceutical Agent
+                  </label>
+                  <select
+                    value={medicineName}
+                    onChange={(e) => setMedicineName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-white border border-black/[0.06] text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-950"
+                  >
+                    <option value="Paracetamol (500mg IV)">Paracetamol (500mg IV)</option>
+                    <option value="Norepinephrine (4mg/4mL)">Norepinephrine (4mg/4mL)</option>
+                    <option value="Morphine Sulfate (10mg/mL)">Morphine Sulfate (10mg/mL)</option>
+                    <option value="Broad-Spectrum Ceftriaxone">Broad-Spectrum Ceftriaxone</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Priority & Quantity */}
+            <div className="space-y-4 pt-4 border-t border-black/[0.04]">
+              <h2 className="text-sm font-semibold tracking-tight text-neutral-950">
+                3. Triage Priority & Quantity
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Priority Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Acuity Tier
+                  </label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['Critical', 'High', 'Medium', 'Low'] as PriorityLevel[]).map((p) => {
+                      const isSelected = priority === p;
                       return (
                         <button
-                          key={opt.id}
                           type="button"
-                          onClick={() => setResourceType(opt.id)}
-                          className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1.5 ${
+                          key={p}
+                          onClick={() => setPriority(p)}
+                          className={`py-2 px-1 rounded-xl text-xs font-medium transition cursor-pointer flex flex-col items-center gap-1 ${
                             isSelected
-                              ? 'bg-blue-50 border-blue-300 text-blue-700 ring-2 ring-blue-500/20 font-bold'
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                              ? 'bg-neutral-950 text-white shadow-2xs'
+                              : 'bg-neutral-50/80 hover:bg-neutral-100 text-neutral-600 border border-black/[0.04]'
                           }`}
                         >
-                          <Icon className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
-                          <span className="text-[11px] truncate leading-tight">{opt.label}</span>
+                          <span className={`h-1.5 w-1.5 rounded-full ${getPriorityDot(p)}`} />
+                          <span>{p}</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Sub-inputs depending on selected resource */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {resourceType === 'Blood Products' && (
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">
-                        Blood Group
-                      </label>
-                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                        {['A+', 'O+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'].map((bg) => (
-                          <button
-                            key={bg}
-                            type="button"
-                            onClick={() => setBloodGroup(bg)}
-                            className={`py-1.5 px-1 text-center font-bold text-xs rounded-lg border transition ${
-                              bloodGroup === bg
-                                ? 'bg-rose-50 border-rose-300 text-rose-700 ring-2 ring-rose-500/20'
-                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {bg}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {resourceType === 'Pharmaceuticals' && (
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">
-                        Medicine Line
-                      </label>
-                      <select
-                        value={medicineName}
-                        onChange={(e) => setMedicineName(e.target.value)}
-                        className="w-full h-9.5 px-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition cursor-pointer"
-                      >
-                        <option value="Paracetamol (500mg IV)">Paracetamol (500mg IV)</option>
-                        <option value="Epinephrine (1mg)">Epinephrine (1mg)</option>
-                        <option value="Normal Saline (1000ml)">Normal Saline (1000ml)</option>
-                        <option value="Heparin (5000 IU)">Heparin (5000 IU)</option>
-                        <option value="Propofol (20ml)">Propofol (20ml)</option>
-                        <option value="Lidocaine 2%">Lidocaine 2%</option>
-                        <option value="Ceftriaxone (1g)">Ceftriaxone (1g)</option>
-                      </select>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Quantity Required
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="h-9.5 w-9.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={quantity}
-                        onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                        className="flex-1 h-9.5 px-3 text-center font-mono font-bold text-slate-900 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:outline-none transition"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(quantity + 1)}
-                        className="h-9.5 w-9.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
+                {/* Quantity Stepper */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-neutral-600">
+                    Requested Units
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="h-10 w-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 flex items-center justify-center transition cursor-pointer"
+                    >
+                      <Minus className="h-4 w-4 stroke-[2]" />
+                    </button>
+                    <span className="font-mono text-base font-semibold text-neutral-950 w-12 text-center">
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="h-10 w-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 flex items-center justify-center transition cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4 stroke-[2]" />
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Priority Selection */}
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">
-                    Triage Acuity Priority
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {[
-                      { value: 'Critical', label: 'Critical', detail: '< 15m Dispatch', color: 'border-red-300 text-red-700 bg-red-50' },
-                      { value: 'High', label: 'High', detail: '< 30m Urgent', color: 'border-amber-300 text-amber-700 bg-amber-50' },
-                      { value: 'Medium', label: 'Medium', detail: '< 2h Acute', color: 'border-blue-300 text-blue-700 bg-blue-50' },
-                      { value: 'Low', label: 'Low', detail: 'Routine Schedule', color: 'border-slate-300 text-slate-700 bg-slate-100' },
-                    ].map((tier) => (
-                      <button
-                        key={tier.value}
-                        type="button"
-                        onClick={() => setPriority(tier.value as PriorityLevel)}
-                        className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center ${
-                          priority === tier.value
-                            ? `${tier.color} ring-2 ring-blue-500/20 font-bold`
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-xs">{tier.label}</span>
-                        <span className="text-[10px] text-slate-400 font-normal">{tier.detail}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Emergency Notes */}
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Emergency Clinical Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Enter trauma diagnosis, vital signs, or dispatch instructions..."
-                    value={emergencyNotes}
-                    onChange={(e) => setEmergencyNotes(e.target.value)}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:outline-none transition"
-                  />
-                </div>
-
-                {/* Submit Request Button */}
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-xs hover:shadow-sm transition"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span>Submit & Run Simulated Allocation</span>
-                  </button>
-                </div>
-              </form>
+              {/* Clinical Notes */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-neutral-600">
+                  Clinical Dispatch Notes (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={emergencyNotes}
+                  onChange={(e) => setEmergencyNotes(e.target.value)}
+                  placeholder="Additional context for receiving medical officers..."
+                  className="w-full p-3 rounded-xl bg-neutral-50/70 border border-black/[0.06] text-xs text-neutral-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-950 transition"
+                />
+              </div>
             </div>
-          )}
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="w-full h-12 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-sm font-medium transition-all shadow-editorial flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <Send className="h-4 w-4 stroke-[1.75]" />
+                <span>Run Algorithmic Allocation</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* VIEW TAB 2: ALL REQUESTS QUEUE */}
-      {activeTab === 'queue' && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden space-y-4">
-          {/* Table Controls Header: Search & Filter Pills */}
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+      {/* 3. MODE: ALLOCATION SIMULATION (Raycast / Linear style progress) */}
+      {viewMode === 'allocating' && (
+        <div className="max-w-xl mx-auto py-12 space-y-8 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 border border-black/[0.04] shadow-editorial-float space-y-6 text-center">
+            {/* Pulsing Status Dot */}
+            <div className="mx-auto h-12 w-12 rounded-full bg-neutral-100 flex items-center justify-center relative">
+              <span className="h-4 w-4 rounded-full bg-neutral-950 animate-breathing-dot" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold tracking-tight text-neutral-950">
+                Running MedAlloc Routing Engine
+              </h2>
+              <p className="text-xs text-neutral-500 font-normal">
+                {simulationState.stepMessage || 'Evaluating regional inventory and transit paths...'}
+              </p>
+            </div>
+
+            {/* Hairline Progress Bar */}
+            <div className="h-1 w-full bg-neutral-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-neutral-950 transition-all duration-500"
+                style={{ width: `${simulationState.progressPercent}%` }}
+              />
+            </div>
+
+            {/* Telemetry Steps */}
+            <div className="pt-4 text-left space-y-2 border-t border-black/[0.03]">
+              <div className="text-[11px] font-medium text-neutral-400">
+                Live Dispatch Telemetry:
+              </div>
+              <div className="text-xs text-neutral-600 font-mono space-y-1">
+                <p>• Patient: {patientName} ({patientLocation})</p>
+                <p>• Acuity Order: Priority Queue Min-Heap evaluated</p>
+                <p>• Spatial Grid: Dijkstra shortest transit matrix computing</p>
+                <p>• Inventory: Synchronizing hospital reserve state</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. MODE: ALLOCATION RESULT (Stripe / Vercel style success receipt) */}
+      {viewMode === 'result' && allocationResult && (
+        <div className="max-w-xl mx-auto py-8 space-y-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl p-8 border border-black/[0.04] shadow-editorial-float space-y-6">
+            {/* Success Ring */}
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Check className="h-5 w-5 stroke-[2]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-neutral-950">
+                  Resource Allocated Successfully
+                </h2>
+                <p className="text-xs text-neutral-400">
+                  Reservation confirmed & dispatch route locked.
+                </p>
+              </div>
+            </div>
+
+            {/* Receipt Summary */}
+            <div className="p-5 rounded-2xl bg-neutral-50/80 border border-black/[0.03] space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500">Patient</span>
+                <span className="font-medium text-neutral-900">{allocationResult.patientName}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500">Assigned Hospital</span>
+                <span className="font-semibold text-neutral-950">{allocationResult.assignedHospital}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500">Resource</span>
+                <span className="font-medium text-neutral-900">
+                  {allocationResult.resource} ({allocationResult.quantity} units)
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500">Transit Distance / ETA</span>
+                <span className="font-mono text-neutral-900">
+                  {allocationResult.distanceKm} km · {allocationResult.estimatedArrivalTime}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-xs">
+                <span className="text-neutral-500">Inventory Balance</span>
+                <span className="font-medium text-emerald-600">
+                  {allocationResult.previousInventoryStock} units → {allocationResult.updatedInventoryStock} units
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  if (onOpenProcessModal) onOpenProcessModal(allocationResult);
+                  else openProcessModalWithData(allocationResult);
+                }}
+                className="w-full h-11 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>Inspect Algorithmic Process</span>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setPatientName('');
+                    setViewMode('intake');
+                  }}
+                  className="h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-medium transition cursor-pointer"
+                >
+                  New Intake
+                </button>
+                <button
+                  onClick={() => setViewMode('queue')}
+                  className="h-10 rounded-full border border-black/[0.08] hover:bg-neutral-50 text-neutral-800 text-xs font-medium transition cursor-pointer"
+                >
+                  View Active Queue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODE: ACTIVE QUEUE (Linear Issue List Style) */}
+      {viewMode === 'queue' && (
+        <div className="space-y-4">
+          {/* Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Search requests..."
-                className="w-full h-8.5 pl-8 pr-3 text-xs bg-slate-50 rounded-lg border border-slate-200 focus:border-blue-500 focus:outline-none"
+                placeholder="Filter requests..."
+                className="w-full h-9 pl-9 pr-3 rounded-full bg-white border border-black/[0.06] text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-950"
               />
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-400 px-1 font-semibold">Priority:</span>
-                {(['All', 'Critical', 'High', 'Medium', 'Low'] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPriorityFilter(p)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
-                      priorityFilter === p
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-400 px-1 font-semibold">Status:</span>
-                {(['All', 'Pending', 'Processing', 'Allocated', 'Completed', 'Cancelled'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
-                      statusFilter === s
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['All', 'Critical', 'High', 'Medium', 'Low'] as Array<'All' | PriorityLevel>).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPriorityFilter(p)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer ${
+                    priorityFilter === p
+                      ? 'bg-neutral-950 text-white'
+                      : 'bg-white border border-black/[0.05] text-neutral-600 hover:text-neutral-950'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/40 text-slate-400 font-semibold text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-5">ID & Patient</th>
-                  <th className="py-2.5 px-5">Resource</th>
-                  <th className="py-2.5 px-5">Priority</th>
-                  <th className="py-2.5 px-5">Assigned Facility</th>
-                  <th className="py-2.5 px-5">Status</th>
-                  <th className="py-2.5 px-5">Timestamp</th>
-                  <th className="py-2.5 px-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRequests.length > 0 ? (
-                  filteredRequests.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Patient */}
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs shrink-0">
-                            <User className="h-3.5 w-3.5" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block truncate">
-                              {req.patientName}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {req.id} • {req.patientLocation}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
+          {/* Requests List */}
+          <div className="space-y-3">
+            {filteredRequests.length === 0 ? (
+              <div className="p-12 rounded-3xl bg-white border border-black/[0.04] text-center text-xs text-neutral-400">
+                No matching requests found
+              </div>
+            ) : (
+              filteredRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-white rounded-2xl p-5 border border-black/[0.04] shadow-editorial-sm hover:shadow-editorial hover:border-black/[0.08] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                >
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${getPriorityDot(req.priority)}`} />
+                      <span className="text-sm font-semibold tracking-tight text-neutral-950 truncate">
+                        {req.patientName}
+                      </span>
+                      <span className="text-xs text-neutral-400">
+                        ({req.patientAge}y, {req.patientGender}) · {req.patientLocation}
+                      </span>
+                    </div>
 
-                      {/* Resource */}
-                      <td className="py-3.5 px-5 font-medium text-slate-800">
-                        {req.resource}
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-3.5 px-5">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            req.priority === 'Critical'
-                              ? 'bg-red-50 text-red-700 border-red-200'
-                              : req.priority === 'High'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : req.priority === 'Medium'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          {req.priority}
-                        </span>
-                      </td>
-
-                      {/* Assigned Hospital */}
-                      <td className="py-3.5 px-5">
-                        <span className="text-slate-800 font-medium">
-                          {req.assignedHospital || req.originHospital}
-                        </span>
-                        {req.distanceKm !== undefined && (
-                          <span className="text-[10px] text-slate-400 block font-mono">
-                            {req.distanceKm} km • {req.estimatedArrivalTime}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-5">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            req.status === 'Allocated' || req.status === 'Completed'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : req.status === 'Processing'
-                              ? 'bg-blue-50 text-blue-700'
-                              : req.status === 'Cancelled'
-                              ? 'bg-red-50 text-red-600'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {req.status}
-                        </span>
-                      </td>
-
-                      {/* Timestamp */}
-                      <td className="py-3.5 px-5 text-slate-400 font-mono text-[11px]">
+                    <div className="flex items-center gap-3 text-xs text-neutral-500">
+                      <span className="font-medium text-neutral-800">
+                        {req.resource} ({req.quantity})
+                      </span>
+                      <span>•</span>
+                      <span className="text-neutral-500">
+                        Assigned: {req.assignedHospital || 'Pending Match'}
+                      </span>
+                      <span>•</span>
+                      <span className="text-neutral-400">
                         {req.timestamp}
-                      </td>
+                      </span>
+                    </div>
+                  </div>
 
-                      {/* Actions */}
-                      <td className="py-3.5 px-5 text-right space-x-1">
-                        <button
-                          onClick={() => {
-                            const resData: AllocationResultData = {
-                              requestId: req.id,
-                              allocationId: req.allocationId || `ALC-${req.id.replace('REQ-', '')}`,
-                              patientName: req.patientName,
-                              resource: req.resource,
-                              quantity: req.quantity,
-                              priority: req.priority,
-                              assignedHospital: req.assignedHospital || req.originHospital,
-                              distanceKm: req.distanceKm ?? 4,
-                              estimatedArrivalTime: req.estimatedArrivalTime || '10 mins',
-                              timestamp: req.timestamp,
-                              availableUnits: 14,
-                              previousInventoryStock: 14,
-                              updatedInventoryStock: 14 - req.quantity,
-                              reasonSelected: 'Optimal available facility with guaranteed reserve.',
-                              emergencyReason: req.emergencyNotes || 'Emergency clinical triage intake dispatch.',
-                              status: req.status,
-                            };
-                            handleViewProcess(resData);
-                          }}
-                          className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-slate-100 font-semibold text-xs transition"
-                        >
-                          View Process
-                        </button>
-
-                        {req.status === 'Allocated' && (
-                          <button
-                            onClick={() => updateRequestStatus(req.id, 'Completed')}
-                            className="px-2 py-1 rounded-lg text-emerald-700 hover:bg-emerald-50 font-semibold text-xs transition"
-                            title="Mark as Completed"
-                          >
-                            Complete
-                          </button>
-                        )}
-
-                        {req.status !== 'Completed' && req.status !== 'Cancelled' && (
-                          <button
-                            onClick={() => updateRequestStatus(req.id, 'Cancelled')}
-                            className="px-2 py-1 rounded-lg text-red-600 hover:bg-red-50 font-semibold text-xs transition"
-                            title="Cancel Request"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 italic">
-                      No emergency requests match current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <button
+                      onClick={() => {
+                        const processData: AllocationResultData = {
+                          requestId: req.id,
+                          allocationId: req.allocationId || `ALC-${req.id.replace('REQ-', '')}`,
+                          patientName: req.patientName,
+                          resource: req.resource,
+                          quantity: req.quantity,
+                          priority: req.priority,
+                          assignedHospital: req.assignedHospital || req.originHospital,
+                          distanceKm: req.distanceKm ?? 3.8,
+                          estimatedArrivalTime: req.estimatedArrivalTime || '10 mins',
+                          timestamp: req.timestamp,
+                          availableUnits: 12,
+                          previousInventoryStock: 12,
+                          updatedInventoryStock: 12 - req.quantity,
+                          reasonSelected: 'Nearest regional hospital holding required reserve.',
+                          emergencyReason: req.emergencyNotes || 'Emergency clinical triage intake dispatch.',
+                          status: req.status,
+                        };
+                        openProcessModalWithData(processData);
+                      }}
+                      className="px-3.5 py-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-xs font-medium text-neutral-800 transition cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Inspect</span>
+                      <ArrowUpRight className="h-3 w-3 stroke-[2]" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

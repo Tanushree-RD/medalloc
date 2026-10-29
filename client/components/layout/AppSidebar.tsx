@@ -8,7 +8,6 @@ import {
   Package,
   History,
   Info,
-  HeartPulse,
   X,
   RotateCcw,
 } from 'lucide-react';
@@ -33,21 +32,18 @@ export function AppSidebar({
     name: AppPage;
     icon: React.ComponentType<{ className?: string }>;
     badge?: number | string;
-    badgeColor?: string;
   }> = [
     { name: 'Dashboard', icon: LayoutDashboard },
     {
       name: 'Emergency Requests',
       icon: AlertTriangle,
       badge: activeRequestsCount > 0 ? activeRequestsCount : undefined,
-      badgeColor: 'bg-blue-100 text-blue-800',
     },
     { name: 'Hospitals', icon: Building2 },
     {
       name: 'Inventory',
       icon: Package,
-      badge: lowStockAlerts.length > 0 ? `${lowStockAlerts.length} alert` : undefined,
-      badgeColor: 'bg-amber-100 text-amber-900',
+      badge: lowStockAlerts.length > 0 ? lowStockAlerts.length : undefined,
     },
     { name: 'Allocation History', icon: History },
     { name: 'About', icon: Info },
@@ -56,7 +52,6 @@ export function AppSidebar({
   const handleReset = () => {
     if (window.confirm('Reset all hospital inventories, requests, and notifications to initial mock seed?')) {
       resetAllData();
-      alert('Application reset to initial seed data successfully.');
     }
   };
 
@@ -66,30 +61,32 @@ export function AppSidebar({
       {mobileOpen && (
         <div
           onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-neutral-950/20 backdrop-blur-xs lg:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white/95 backdrop-blur-md border-r border-slate-200/80 flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0 ${
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white/90 backdrop-blur-xl border-r border-black/[0.05] flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Brand / Logo */}
-        <div>
-          <div className="h-16 px-5 flex items-center justify-between border-b border-slate-100/90">
+        {/* Top: Brand & Navigation */}
+        <div className="flex flex-col">
+          {/* Brand Mark */}
+          <div className="h-18 px-6 flex items-center justify-between border-b border-black/[0.04]">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-xs shadow-blue-500/20">
-                <HeartPulse className="h-5 w-5 stroke-[2.3]" />
+              {/* Minimal geometric jewel icon */}
+              <div className="h-8 w-8 rounded-xl bg-neutral-950 text-white flex items-center justify-center shadow-xs">
+                <span className="text-base font-semibold tracking-tighter">M</span>
               </div>
               <div>
-                <span className="font-extrabold text-base tracking-tight text-slate-900 block leading-tight">
+                <span className="font-semibold text-sm tracking-tight text-neutral-950 block leading-tight">
                   MedAlloc
                 </span>
-                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">
-                  Regional Medical Grid
+                <span className="text-[11px] font-normal text-neutral-400 block tracking-normal mt-0.5">
+                  Emergency Dispatch
                 </span>
               </div>
             </div>
@@ -97,18 +94,19 @@ export function AppSidebar({
             {/* Close on mobile */}
             <button
               onClick={onCloseMobile}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+              className="lg:hidden p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition"
               aria-label="Close sidebar"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Navigation Menu */}
-          <nav className="p-3 space-y-1 overflow-y-auto">
-            <div className="px-3 pt-2 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Operations Center
+          {/* Navigation Links */}
+          <nav className="p-3.5 space-y-1">
+            <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-neutral-400">
+              Workspace
             </div>
+
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activePage === item.name;
@@ -120,25 +118,29 @@ export function AppSidebar({
                     setActivePage(item.name);
                     onCloseMobile();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition-all duration-150 group cursor-pointer ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 shadow-2xs ring-1 ring-blue-500/15'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50/80'
+                      ? 'bg-neutral-100 text-neutral-950 font-medium'
+                      : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-50/80 font-normal'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2.5">
                     <Icon
-                      className={`h-4 w-4 shrink-0 transition-colors ${
-                        isActive ? 'text-blue-600' : 'text-slate-400'
+                      className={`h-4 w-4 stroke-[1.75] transition-colors ${
+                        isActive
+                          ? 'text-neutral-950'
+                          : 'text-neutral-400 group-hover:text-neutral-700'
                       }`}
                     />
-                    <span className="truncate">{item.name}</span>
+                    <span>{item.name}</span>
                   </div>
 
-                  {item.badge && (
+                  {item.badge !== undefined && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold shrink-0 ${
-                        item.badgeColor || 'bg-slate-100 text-slate-600'
+                      className={`text-[11px] font-mono px-2 py-0.5 rounded-full transition-colors ${
+                        isActive
+                          ? 'bg-white text-neutral-900 shadow-2xs'
+                          : 'bg-neutral-100 text-neutral-500 group-hover:bg-neutral-200/70 group-hover:text-neutral-700'
                       }`}
                     >
                       {item.badge}
@@ -150,26 +152,32 @@ export function AppSidebar({
           </nav>
         </div>
 
-        {/* Minimal clean footer with Reset Seed action & Persistence badge */}
-        <div className="p-3.5 border-t border-slate-100 space-y-2 bg-slate-50/40">
-          <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 space-y-2 shadow-2xs">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 font-medium">Data Storage</span>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                localStorage Active
+        {/* Bottom Status & Reset Seed */}
+        <div className="p-4 border-t border-black/[0.04] space-y-3">
+          {/* Storage & Engine Status */}
+          <div className="p-3 rounded-xl bg-neutral-50/80 border border-black/[0.03] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-neutral-500">
+                Network Storage
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-breathing-dot" />
+                Live Sync
               </span>
             </div>
-
-            <button
-              onClick={handleReset}
-              className="w-full py-1.5 px-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-[11px] font-medium transition flex items-center justify-center gap-1.5"
-              title="Restore default mock data"
-            >
-              <RotateCcw className="h-3 w-3 text-slate-400" />
-              <span>Reset Demo Seed</span>
-            </button>
+            <p className="text-[11px] text-neutral-400 leading-snug">
+              Encrypted browser persistence active across sessions.
+            </p>
           </div>
+
+          {/* Reset Seed Action */}
+          <button
+            onClick={handleReset}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-normal text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100/60 transition cursor-pointer"
+          >
+            <RotateCcw className="h-3 w-3 stroke-[1.75]" />
+            <span>Reset to mock seed</span>
+          </button>
         </div>
       </aside>
     </>

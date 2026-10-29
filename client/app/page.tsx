@@ -28,11 +28,11 @@ function MedAllocAppContent() {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#fafafc] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-3 border-blue-600 border-t-transparent animate-spin" />
-          <span className="text-xs font-semibold text-slate-500">
-            Initializing MedAlloc Prototype...
+          <div className="h-6 w-6 rounded-full border-2 border-neutral-900 border-t-transparent animate-spin" />
+          <span className="text-xs font-medium text-neutral-400">
+            Initializing MedAlloc...
           </span>
         </div>
       </div>
@@ -45,7 +45,7 @@ function MedAllocAppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans antialiased selection:bg-blue-500/10">
+    <div className="min-h-screen bg-[#fafafc] text-neutral-950 flex font-sans antialiased selection:bg-neutral-950 selection:text-white">
       {/* 1. App Sidebar */}
       <AppSidebar
         mobileOpen={mobileSidebarOpen}
@@ -60,7 +60,7 @@ function MedAllocAppContent() {
         />
 
         {/* Scrollable Page Body */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 max-w-7xl mx-auto w-full">
           {activePage === 'Dashboard' && (
             <DashboardView
               onNavigateToRequests={() => setActivePage('Emergency Requests')}

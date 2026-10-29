@@ -5,7 +5,6 @@ import {
   Search,
   Bell,
   Menu,
-  User,
   Check,
   Trash2,
   AlertTriangle,
@@ -31,7 +30,6 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
     globalSearchQuery,
     setGlobalSearchQuery,
     setActivePage,
-    hospitals,
   } = useMedAlloc();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -69,199 +67,197 @@ export function AppTopBar({ onOpenMobileSidebar }: AppTopBarProps) {
   const getNotificationIcon = (type: string, severity: string) => {
     if (severity === 'critical' || type === 'low_stock') {
       return (
-        <div className="h-6 w-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-          <AlertTriangle className="h-3.5 w-3.5" />
+        <div className="h-7 w-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+          <AlertTriangle className="h-3.5 w-3.5 stroke-[1.75]" />
         </div>
       );
     }
     if (type === 'allocation_completed') {
       return (
-        <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-          <CheckCircle2 className="h-3.5 w-3.5" />
+        <div className="h-7 w-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+          <CheckCircle2 className="h-3.5 w-3.5 stroke-[1.75]" />
         </div>
       );
     }
     if (type === 'inventory_updated') {
       return (
-        <div className="h-6 w-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-          <Package className="h-3.5 w-3.5" />
+        <div className="h-7 w-7 rounded-full bg-neutral-100 text-neutral-700 flex items-center justify-center shrink-0">
+          <Package className="h-3.5 w-3.5 stroke-[1.75]" />
         </div>
       );
     }
     return (
-      <div className="h-6 w-6 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-        <Info className="h-3.5 w-3.5" />
+      <div className="h-7 w-7 rounded-full bg-neutral-100 text-neutral-500 flex items-center justify-center shrink-0">
+        <Info className="h-3.5 w-3.5 stroke-[1.75]" />
       </div>
     );
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-      {/* Left: Mobile hamburger & Global Search */}
-      <div className="flex items-center gap-3 flex-1 max-w-lg">
+    <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-xl border-b border-black/[0.04] px-6 lg:px-10 flex items-center justify-between gap-4">
+      {/* Left: Mobile menu & Raycast-style Global Search */}
+      <div className="flex items-center gap-4 flex-1 max-w-lg">
         <button
           onClick={onOpenMobileSidebar}
-          aria-label="Open Navigation Menu"
-          className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
+          className="lg:hidden p-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition"
+          aria-label="Open navigation menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5 stroke-[1.75]" />
         </button>
 
-        <div className="relative w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+        {/* Raycast-style Search Input */}
+        <div className="relative w-full max-w-sm group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400 pointer-events-none group-focus-within:text-neutral-900 transition-colors" />
           <input
             type="text"
             value={globalSearchQuery}
             onChange={(e) => setGlobalSearchQuery(e.target.value)}
-            placeholder="Search patients, hospitals, inventory, or history..."
-            className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-800 placeholder-slate-400 rounded-xl border border-slate-200/80 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all shadow-2xs"
+            placeholder="Search network, patients, inventory..."
+            className="w-full h-9 pl-9 pr-14 rounded-full bg-neutral-100/70 hover:bg-neutral-100 focus:bg-white text-xs font-normal text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-900/20 border border-transparent focus:border-neutral-200 transition-all"
           />
-          {globalSearchQuery && (
+          {globalSearchQuery ? (
             <button
               onClick={() => setGlobalSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-              title="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-neutral-400 hover:text-neutral-700 rounded-full"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </button>
+          ) : (
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-neutral-400 bg-white px-1.5 py-0.5 rounded border border-black/[0.06] shadow-2xs pointer-events-none hidden sm:inline-block">
+              ⌘K
+            </kbd>
           )}
         </div>
       </div>
 
-      {/* Center/Right: Live Network Status badge */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 font-medium">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-        </span>
-        <span>Regional Grid Online</span>
-        <span className="text-slate-300">•</span>
-        <span className="text-slate-500 font-mono">{hospitals.length} Hubs Synchronized</span>
-      </div>
+      {/* Right: Network Status, Notifications, Operator Avatar */}
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        {/* Network Status Pill */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-50 border border-black/[0.04]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-breathing-dot" />
+          <span className="text-xs font-normal text-neutral-500">
+            5 hubs online
+          </span>
+        </div>
 
-      {/* Right: Notifications & Dispatcher Profile */}
-      <div className="flex items-center gap-2 sm:gap-3" ref={popoverRef}>
-        {/* Notifications Popover */}
-        <div className="relative">
+        {/* Notifications Popover Trigger */}
+        <div className="relative" ref={popoverRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            aria-label="Notifications"
-            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
+            className="relative p-2 rounded-full text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/80 transition cursor-pointer"
+            aria-label="View notifications"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-4 w-4 stroke-[1.75]" />
             {unreadNotificationsCount > 0 && (
-              <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white shadow-xs">
-                {unreadNotificationsCount}
-              </span>
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-neutral-950 ring-2 ring-white" />
             )}
           </button>
 
+          {/* Floating Notifications Drawer */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-84 sm:w-96 rounded-2xl bg-white border border-slate-200 shadow-xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 px-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 text-sm">Notifications</span>
-                  {unreadNotificationsCount > 0 && (
-                    <span className="px-2 py-0.2 rounded-full bg-blue-100 text-blue-800 font-bold text-[10px]">
-                      {unreadNotificationsCount} unread
-                    </span>
-                  )}
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white border border-black/[0.06] shadow-editorial-float overflow-hidden z-50 animate-in fade-in duration-150">
+              {/* Popover Header */}
+              <div className="p-4 border-b border-black/[0.04] flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold tracking-tight text-neutral-950">
+                    Notifications
+                  </h3>
+                  <p className="text-xs text-neutral-400 mt-0.5">
+                    {unreadNotificationsCount} unread alert{unreadNotificationsCount === 1 ? '' : 's'}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={markAllNotificationsAsRead}
-                    className="p-1 text-slate-500 hover:text-blue-600 rounded text-[11px] font-medium"
-                    title="Mark all as read"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={clearAllNotifications}
-                    className="p-1 text-slate-400 hover:text-red-600 rounded"
-                    title="Clear all"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {unreadNotificationsCount > 0 && (
+                    <button
+                      onClick={markAllNotificationsAsRead}
+                      className="p-1.5 text-xs text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition"
+                      title="Mark all as read"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={clearAllNotifications}
+                      className="p-1.5 text-xs text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                      title="Clear all"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Tabs: All / Unread */}
-              <div className="flex items-center gap-2 py-2 px-1 text-xs border-b border-slate-100 font-semibold">
+              {/* Sub-tabs */}
+              <div className="px-4 py-2 border-b border-black/[0.03] bg-neutral-50/50 flex gap-2">
                 <button
                   onClick={() => setNotificationTab('all')}
-                  className={`px-2 py-1 rounded-lg transition ${
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition cursor-pointer ${
                     notificationTab === 'all'
-                      ? 'bg-slate-100 text-slate-900 font-bold'
-                      : 'text-slate-400 hover:text-slate-700'
+                      ? 'bg-neutral-950 text-white'
+                      : 'text-neutral-500 hover:text-neutral-900'
                   }`}
                 >
                   All ({notifications.length})
                 </button>
                 <button
                   onClick={() => setNotificationTab('unread')}
-                  className={`px-2 py-1 rounded-lg transition ${
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition cursor-pointer ${
                     notificationTab === 'unread'
-                      ? 'bg-slate-100 text-slate-900 font-bold'
-                      : 'text-slate-400 hover:text-slate-700'
+                      ? 'bg-neutral-950 text-white'
+                      : 'text-neutral-500 hover:text-neutral-900'
                   }`}
                 >
                   Unread ({unreadNotificationsCount})
                 </button>
               </div>
 
-              {/* Notification Items List */}
-              <div className="divide-y divide-slate-100 mt-1 max-h-72 overflow-y-auto">
-                {displayedNotifications.length > 0 ? (
+              {/* Notification List */}
+              <div className="max-h-80 overflow-y-auto divide-y divide-black/[0.03]">
+                {displayedNotifications.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-neutral-400 font-normal">
+                    No notifications to display
+                  </div>
+                ) : (
                   displayedNotifications.map((n) => (
                     <div
                       key={n.id}
                       onClick={() => handleNotificationClick(n)}
-                      className={`py-2.5 px-2 rounded-xl transition cursor-pointer flex items-start gap-2.5 ${
-                        !n.read ? 'bg-blue-50/40 hover:bg-blue-50/70' : 'hover:bg-slate-50'
+                      className={`p-3.5 flex items-start gap-3 hover:bg-neutral-50/80 transition cursor-pointer ${
+                        !n.read ? 'bg-neutral-50/40' : ''
                       }`}
                     >
-                      <div className="mt-0.5">
-                        {getNotificationIcon(n.type, n.severity)}
-                      </div>
-
+                      {getNotificationIcon(n.type, n.severity)}
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-800 flex items-center justify-between gap-1">
-                          <span className="truncate">{n.title}</span>
-                          <span className="text-[10px] text-slate-400 font-normal shrink-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs ${!n.read ? 'font-medium text-neutral-900' : 'text-neutral-700'}`}>
+                            {n.title}
+                          </span>
+                          <span className="text-[10px] text-neutral-400 shrink-0">
                             {n.timestamp}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-tight">
+                        <p className="text-xs text-neutral-500 mt-0.5 line-clamp-2 leading-relaxed">
                           {n.message}
                         </p>
                       </div>
-
-                      {!n.read && (
-                        <span className="h-2 w-2 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                      )}
                     </div>
                   ))
-                ) : (
-                  <div className="py-6 text-center text-slate-400 italic text-[11px]">
-                    No notifications in this view.
-                  </div>
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Dispatcher Profile */}
-        <div className="flex items-center gap-2.5 pl-2.5 border-l border-slate-200">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200/80 flex items-center justify-center text-slate-700 font-bold text-xs shadow-2xs">
-            <User className="h-4 w-4 text-slate-600" />
+        {/* Minimal Dispatch Officer Identifier */}
+        <div className="flex items-center gap-2 pl-2 border-l border-black/[0.05]">
+          <div className="h-7 w-7 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[11px] font-medium tracking-tight">
+            DO
           </div>
-          <div className="hidden sm:block text-left text-xs leading-tight">
-            <div className="font-bold text-slate-800">Dispatch Officer</div>
-            <div className="text-[10px] text-slate-400 font-medium">Emergency Ops Hub</div>
-          </div>
+          <span className="text-xs font-normal text-neutral-600 hidden sm:inline">
+            Officer
+          </span>
         </div>
       </div>
     </header>
